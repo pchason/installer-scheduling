@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database/client';
 import { handleApiError } from '@/app/api/error-handler';
+import { chatMessages } from '@/lib/database/schema';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const { userId, messageText, responseText } = body;
 
-    // Placeholder: Chat with AI agent
-    return NextResponse.json(
-      {
-        message: 'POST /api/chat - Chat with AI agent',
-        body,
-        placeholder: true,
-      },
-      { status: 201 }
-    );
+    const result = await db
+      .insert(chatMessages)
+      .values({
+        userId,
+        messageText,
+        responseText,
+      })
+      .returning();
+
+    return NextResponse.json(result[0], { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }

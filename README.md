@@ -4,7 +4,7 @@ An AI-powered scheduling system for managing construction trades installers (200
 
 ## Tech Stack
 
-- **Framework**: Hono (TypeScript-first, edge-compatible)
+- **Framework**: NextJS
 - **Database**: Supabase PostgreSQL with Drizzle ORM
 - **AI**: Mastra AI Framework
 - **Chat UI**: CopilotKit

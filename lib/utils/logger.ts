@@ -1,10 +1,20 @@
 import pino from 'pino';
+import axiomTransport from '@axiomhq/pino';
 
-const isProd = process.env.NODE_ENV === 'production';
+const axiomToken = process.env.AXIOM_TOKEN;
 
-const loggerOptions = isProd
+// Always use Axiom if token is provided, otherwise fall back to standard logging
+const loggerOptions = axiomToken
   ? {
       level: process.env.LOG_LEVEL || 'info',
+      transport: {
+        target: '@axiomhq/pino',
+        options: {
+          token: axiomToken,
+          org: process.env.AXIOM_ORG,
+          dataset: process.env.AXIOM_DATASET || 'installer-scheduling',
+        },
+      },
     }
   : {
       level: process.env.LOG_LEVEL || 'debug',

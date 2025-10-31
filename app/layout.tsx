@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Installer Scheduling API',
+  title: 'Installer Scheduling',
   description: 'AI-powered scheduling system for construction installers',
 };
 

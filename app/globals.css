@@ -1,0 +1,99 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f5f5f5;
+}
+
+/* FullCalendar Styles */
+:global(.fc) {
+  font-family: inherit;
+}
+
+:global(.fc .fc-button-primary) {
+  background-color: #0066cc;
+  border-color: #0066cc;
+}
+
+:global(.fc .fc-button-primary:hover) {
+  background-color: #0052a3;
+}
+
+:global(.fc .fc-button-primary.fc-button-active) {
+  background-color: #0052a3;
+  border-color: #0052a3;
+}
+
+/* CopilotKit Styles */
+:global(.copilotkit-root) {
+  --copilot-kit-primary-color: #0066cc;
+}
+
+:global(.copilotkit-chat) {
+  border-left: 1px solid #e0e0e0;
+  background-color: white;
+}
+
+/* Dashboard Layout */
+:global(.dashboard) {
+  display: grid;
+  grid-template-columns: 1fr 1fr 300px;
+  grid-template-rows: 1fr;
+  gap: 20px;
+  height: 100vh;
+  padding: 20px;
+}
+
+:global(.dashboard-section) {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+:global(.section-header) {
+  padding: 16px;
+  border-bottom: 1px solid #e0e0e0;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  color: #333;
+}
+
+:global(.section-content) {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+@media (max-width: 1400px) {
+  :global(.dashboard) {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  :global(.dashboard-chat) {
+    grid-column: 1 / -1;
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  :global(.dashboard) {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    gap: 16px;
+  }
+}

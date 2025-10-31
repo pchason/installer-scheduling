@@ -1,18 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database/client';
 import { handleApiError } from '@/app/api/error-handler';
+import { installerAssignments, jobSchedules } from '@/lib/database/schema';
+import { eq, and } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
-    // Placeholder: Get bookings with optional location filter
     const searchParams = request.nextUrl.searchParams;
-    const locationId = searchParams.get('locationId');
+    const jobId = searchParams.get('jobId');
+    const installerId = searchParams.get('installerId');
 
-    return NextResponse.json({
-      message: 'GET /api/bookings - Get bookings',
-      filters: { locationId },
-      placeholder: true,
-    });
+    const conditions = [];
+
+    if (jobId) {
+      conditions.push(eq(jobSchedules.jobId, parseInt(jobId, 10)));
+    }
+
+    if (installerId) {
+      conditions.push(eq(installerAssignments.installerId, parseInt(installerId, 10)));
+    }
+
+    let query = db
+      .select()
+      .from(installerAssignments)
+      .innerJoin(jobSchedules, eq(jobSchedules.scheduleId, installerAssignments.scheduleId));
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    const result = await query;
+    return NextResponse.json(result);
   } catch (error) {
     return handleApiError(error);
   }
@@ -21,16 +39,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const { scheduleId, installerId, poId, notes } = body;
 
-    // Placeholder: Create booking with conflict check
-    return NextResponse.json(
-      {
-        message: 'POST /api/bookings - Create booking',
-        body,
-        placeholder: true,
-      },
-      { status: 201 }
-    );
+    const result = await db
+      .insert(installerAssignments)
+      .values({
+        scheduleId,
+        installerId,
+        poId,
+        notes,
+        assignmentStatus: 'assigned',
+      })
+      .returning();
+
+    return NextResponse.json(result[0], { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }

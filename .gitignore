@@ -2,7 +2,7 @@ node_modules/
 dist/
 *.log
 .env
-.env.local
+.env.*
 .DS_Store
 *.sqlite
 *.db
@@ -10,3 +10,4 @@ dist/
 .idea/
 coverage/
 build/
+.next/

@@ -1,29 +1,40 @@
+'use client';
+
+import Link from 'next/link';
+import Calendar from '@/components/Calendar';
+import JobsList from '@/components/JobsList';
+import Chat from '@/components/Chat';
+
 export default function Home() {
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>Installer Scheduling API</h1>
-      <p>Version: 1.0.0</p>
-      <h2>API Endpoints:</h2>
-      <ul>
-        <li>
-          <a href="/api/health">/api/health</a> - Health check
-        </li>
-        <li>
-          <a href="/api">/api</a> - API info
-        </li>
-        <li>
-          <strong>/api/installers</strong> - Manage installers
-        </li>
-        <li>
-          <strong>/api/bookings</strong> - Manage bookings
-        </li>
-        <li>
-          <strong>/api/locations</strong> - Manage locations
-        </li>
-        <li>
-          <strong>/api/chat</strong> - Chat with AI agent
-        </li>
-      </ul>
+    <div className="dashboard">
+      <div style={{ gridColumn: '1 / -1', marginBottom: '10px' }}>
+        <Link
+          href="/job/create"
+          style={{
+            display: 'inline-block',
+            padding: '10px 16px',
+            backgroundColor: '#0066cc',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '4px',
+            fontSize: '13px',
+            fontWeight: 600,
+            transition: 'background-color 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#0052a3';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#0066cc';
+          }}
+        >
+          + Create New Job
+        </Link>
+      </div>
+      <Calendar />
+      <JobsList />
+      <Chat />
     </div>
   );
 }
