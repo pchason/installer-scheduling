@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { logger } from './lib/utils/logger';
 
 export function middleware(request: NextRequest) {
-  // Log incoming requests
-  logger.info({
+  // Log incoming requests (using console since Edge Runtime doesn't support pino)
+  console.info({
     method: request.method,
     path: request.nextUrl.pathname,
     timestamp: new Date().toISOString(),
