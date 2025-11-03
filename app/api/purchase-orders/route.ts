@@ -68,9 +68,9 @@ export async function POST(request: NextRequest) {
     const result = await db
       .insert(purchaseOrders)
       .values({
-        jobId,
+        jobId: parseInt(jobId, 10),
         poNumber,
-        trimLinearFeet: trimLinearFeet ? parseFloat(trimLinearFeet) : null,
+        trimLinearFeet: trimLinearFeet ? trimLinearFeet.toString() : null,
         stairRisers: stairRisers ? parseInt(stairRisers, 10) : null,
         doorCount: doorCount ? parseInt(doorCount, 10) : null,
         status: status ?? 'pending',

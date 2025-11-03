@@ -111,6 +111,8 @@ export const jobs = pgTable(
     zipCode: varchar('zip_code', { length: 10 }).notNull(),
     locationId: integer('location_id').references(() => geographicLocations.locationId),
     status: jobStatusEnum('status').default('pending').notNull(),
+    startDate: date('start_date'),
+    endDate: date('end_date'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },

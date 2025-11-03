@@ -2,7 +2,7 @@ import { createTool } from '@mastra/core';
 import { z } from 'zod';
 import { db } from '@/lib/database/client';
 import { jobs, purchaseOrders, installers, geographicLocations, jobSchedules, installerAssignments } from '@/lib/database/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, notInArray } from 'drizzle-orm';
 
 /**
  * Tool: Get job with purchase orders
@@ -207,6 +207,49 @@ export const getInstallerDetails = createTool({
       return { installer: result[0] };
     } catch (error) {
       return { error: `Failed to get installer details: ${error}` };
+    }
+  },
+});
+
+/**
+ * Tool: Find jobs without installers assigned
+ * Retrieve all jobs that have no installer assignments
+ */
+export const findJobsWithoutInstallers = createTool({
+  id: 'find_jobs_without_installers',
+  description: 'Find all jobs that do not have any installers assigned to them',
+  inputSchema: z.object({
+    limit: z.number().default(10).describe('Maximum number of jobs to return'),
+  }),
+  execute: async ({context}) => {
+    const { limit } = context;
+    try {
+      // Find jobs that have schedules but no assignments
+      const unassignedJobs = await db
+        .selectDistinct({
+          jobId: jobs.jobId,
+          jobNumber: jobs.jobNumber,
+          streetAddress: jobs.streetAddress,
+          city: jobs.city,
+          state: jobs.state,
+          status: jobs.status,
+          locationId: jobs.locationId,
+        })
+        .from(jobs)
+        .innerJoin(jobSchedules, eq(jobs.jobId, jobSchedules.jobId))
+        .where(
+          notInArray(
+            jobSchedules.scheduleId,
+            db
+              .selectDistinct({ scheduleId: installerAssignments.scheduleId })
+              .from(installerAssignments)
+          )
+        )
+        .limit(limit);
+
+      return { jobs: unassignedJobs };
+    } catch (error) {
+      return { error: `Failed to find unassigned jobs: ${error}` };
     }
   },
 });

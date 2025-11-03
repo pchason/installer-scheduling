@@ -1,5 +1,6 @@
 import { Agent } from '@mastra/core/agent';
-import { getJobWithPOs, findAvailableInstallers, createJobSchedule, assignInstaller, getInstallerDetails } from './tools';
+import { groq } from "@ai-sdk/groq";
+import { getJobWithPOs, findAvailableInstallers, createJobSchedule, assignInstaller, getInstallerDetails, findJobsWithoutInstallers } from './tools';
 
 /**
  * Scheduling Agent
@@ -32,12 +33,13 @@ PROCESS:
 8. Provide summary of scheduled installers and dates
 
 Be thorough but efficient. Make decisions autonomously without asking for confirmation.`,
-  model: 'openai/gpt-oss-20b',
+  model: groq('openai/gpt-oss-20b'),
   tools: {
     getJobWithPOs: getJobWithPOs as any,
     findAvailableInstallers: findAvailableInstallers as any,
     createJobSchedule: createJobSchedule as any,
     assignInstaller: assignInstaller as any,
     getInstallerDetails: getInstallerDetails as any,
+    findJobsWithoutInstallers: findJobsWithoutInstallers as any,
   },
 });
