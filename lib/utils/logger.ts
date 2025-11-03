@@ -1,5 +1,4 @@
 import pino from 'pino';
-import axiomTransport from '@axiomhq/pino';
 
 const axiomToken = process.env.AXIOM_TOKEN;
 
@@ -12,7 +11,7 @@ const loggerOptions = axiomToken
         options: {
           token: axiomToken,
           org: process.env.AXIOM_ORG,
-          dataset: process.env.AXIOM_DATASET || 'installer-scheduling',
+          dataset: process.env.AXIOM_DATASET || 'inst aller-scheduling',
         },
       },
     }

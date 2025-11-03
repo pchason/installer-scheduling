@@ -1,4 +1,4 @@
-import { Agent } from '@mastra/core';
+import { Agent } from '@mastra/core/agent';
 import { getJobWithPOs, findAvailableInstallers, createJobSchedule, assignInstaller, getInstallerDetails } from './tools';
 
 /**
@@ -22,8 +22,8 @@ SCHEDULING RULES:
 7. Provide clear reasoning for scheduling decisions
 
 PROCESS:
-1. Use get_job_with_pos to understand job requirements
-2. Analyze which trades are needed based on POs (check trim_linear_feet, stair_risers, door_count)
+1. Use get_job_with_pos to understand job trade type requirements
+2. Analyze which trades are needed based on purchase orders (check amounts of trim_linear_feet, stair_risers, door_count)
 3. For each trade needed, use find_available_installers to get candidates
 4. Use get_installer_details for top candidates
 5. Check location coverage with check_installer_location_coverage
@@ -32,12 +32,12 @@ PROCESS:
 8. Provide summary of scheduled installers and dates
 
 Be thorough but efficient. Make decisions autonomously without asking for confirmation.`,
-  model: 'gpt-4o-mini',
-  tools: [
-    getJobWithPOs,
-    findAvailableInstallers,
-    createJobSchedule,
-    assignInstaller,
-    getInstallerDetails,
-  ],
+  model: 'openai/gpt-oss-20b',
+  tools: {
+    getJobWithPOs: getJobWithPOs as any,
+    findAvailableInstallers: findAvailableInstallers as any,
+    createJobSchedule: createJobSchedule as any,
+    assignInstaller: assignInstaller as any,
+    getInstallerDetails: getInstallerDetails as any,
+  },
 });

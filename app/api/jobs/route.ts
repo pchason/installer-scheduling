@@ -51,25 +51,25 @@ export async function POST(request: NextRequest) {
 
     // Trigger autonomous scheduling workflow (non-blocking, fire-and-forget)
     try {
-      logger.info({ jobId: createdJob.jobId }, 'Triggering autonomous scheduling for new job');
+      logger.info({ jobId: createdJob?.jobId }, 'Triggering autonomous scheduling for new job');
 
       // Call the webhook endpoint to trigger the scheduling agent (non-blocking)
       const webhookUrl = `${request.nextUrl.origin}/api/webhooks/job-created`;
       fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: createdJob.jobId }),
+        body: JSON.stringify({ jobId: createdJob?.jobId }),
       }).catch((error) => {
         logger.warn(
-          { jobId: createdJob.jobId, error },
+          { jobId: createdJob?.jobId, error },
           'Failed to trigger scheduling workflow'
         );
       });
 
-      logger.info({ jobId: createdJob.jobId }, 'Autonomous scheduling triggered');
+      logger.info({ jobId: createdJob?.jobId }, 'Autonomous scheduling triggered');
     } catch (webhookError) {
       logger.warn(
-        { jobId: createdJob.jobId, error: webhookError },
+        { jobId: createdJob?.jobId, error: webhookError },
         'Failed to initiate scheduling workflow'
       );
       // Continue - we still want to return the created job even if scheduling fails

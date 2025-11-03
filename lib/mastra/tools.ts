@@ -14,7 +14,8 @@ export const getJobWithPOs = createTool({
   inputSchema: z.object({
     jobId: z.number().describe('The ID of the job to retrieve'),
   }),
-  execute: async ({ jobId }) => {
+  execute: async ({context}) => {
+    const { jobId } = context;
     try {
       const jobData = await db.select().from(jobs).where(eq(jobs.jobId, jobId));
       const posData = await db.select().from(purchaseOrders).where(eq(purchaseOrders.jobId, jobId));
@@ -46,7 +47,8 @@ export const findAvailableInstallers = createTool({
     date: z.string().describe('Date needed (YYYY-MM-DD format)'),
     limit: z.number().default(5).describe('Maximum number of installers to return'),
   }),
-  execute: async ({ trade, locationId, date, limit }) => {
+  execute: async ({context}) => {
+    const { trade, locationId, date, limit } = context;
     try {
       let query = db
         .select()
@@ -99,7 +101,8 @@ export const createJobSchedule = createTool({
     scheduledDate: z.string().describe('Date to schedule the job (YYYY-MM-DD format)'),
     notes: z.string().optional().describe('Optional notes about the schedule'),
   }),
-  execute: async ({ jobId, scheduledDate, notes }) => {
+  execute: async ({context}) => {
+    const { jobId, scheduledDate, notes } = context;
     try {
       const result = await db
         .insert(jobSchedules)
@@ -131,7 +134,8 @@ export const assignInstaller = createTool({
     poId: z.number().describe('The purchase order ID'),
     notes: z.string().optional().describe('Optional notes about the assignment'),
   }),
-  execute: async ({ scheduleId, installerId, poId, notes }) => {
+  execute: async ({context}) => {
+    const { scheduleId, installerId, poId, notes } = context;
     try {
       const result = await db
         .insert(installerAssignments)
@@ -162,7 +166,8 @@ export const checkInstallerLocationCoverage = createTool({
     installerId: z.number().describe('The installer ID'),
     locationId: z.number().describe('The geographic location ID'),
   }),
-  execute: async ({ installerId, locationId }) => {
+  execute: async ({context}) => {
+    const { installerId, locationId } = context;
     try {
       const result = await db
         .select()
@@ -190,7 +195,8 @@ export const getInstallerDetails = createTool({
   inputSchema: z.object({
     installerId: z.number().describe('The installer ID'),
   }),
-  execute: async ({ installerId }) => {
+  execute: async ({context}) => {
+    const { installerId } = context;
     try {
       const result = await db.select().from(installers).where(eq(installers.installerId, installerId));
 

@@ -31,7 +31,7 @@ Steps:
 Be thorough and autonomous - make all scheduling decisions without asking for confirmation.`;
 
     // Run the scheduling agent
-    const result = await schedulingAgent.run(prompt);
+    const result = await schedulingAgent.generate(prompt);
 
     logger.info(
       { jobId, result },

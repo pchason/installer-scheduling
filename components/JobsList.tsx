@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 
 interface Job {
   jobId: number;
@@ -20,26 +20,99 @@ const statusColors: Record<string, string> = {
   cancelled: '#FF6B6B',
 };
 
+const ITEMS_PER_PAGE = 5;
+
 export default function JobsList() {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
+  const [displayedJobs, setDisplayedJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
+  const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const displayCountRef = useRef(ITEMS_PER_PAGE);
+  const allJobsRef = useRef<Job[]>([]);
+
+  // Update refs when state changes
+  useEffect(() => {
+    displayCountRef.current = displayCount;
+  }, [displayCount]);
 
   useEffect(() => {
-    fetchJobs();
+    allJobsRef.current = allJobs;
+  }, [allJobs]);
+
+  // Initial fetch on filter change
+  useEffect(() => {
+    setDisplayCount(ITEMS_PER_PAGE);
+    fetchAllJobs();
   }, [filter]);
 
-  const fetchJobs = async () => {
+  // Update displayed jobs when allJobs or displayCount changes
+  useEffect(() => {
+    setDisplayedJobs(allJobs.slice(0, displayCount));
+  }, [allJobs, displayCount]);
+
+  // Setup scroll listener for lazy loading
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+
+    if (!scrollContainer || displayedJobs.length === 0) {
+      return;
+    }
+
+    let isLoading = false;
+
+    const handleScroll = () => {
+      // Prevent multiple rapid loads
+      if (isLoading) return;
+
+      // Check if there are more jobs to load
+      if (allJobsRef.current.length <= ITEMS_PER_PAGE) {
+        return;
+      }
+
+      // Check if user scrolled near the bottom
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+
+      // Load more when within 100px of bottom
+      if (distanceFromBottom < 100 && displayCountRef.current < allJobsRef.current.length) {
+        isLoading = true;
+
+        setDisplayCount((prevCount) => {
+          const nextCount = Math.min(prevCount + ITEMS_PER_PAGE, allJobsRef.current.length);
+          return nextCount;
+        });
+
+        // Reset loading flag after a short delay
+        setTimeout(() => {
+          isLoading = false;
+        }, 500);
+      }
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll);
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+    };
+  }, [displayedJobs.length]);
+
+  const fetchAllJobs = async () => {
     try {
       setLoading(true);
+
       let url = '/api/jobs';
       if (filter !== 'all') {
         url += `?status=${filter}`;
       }
+
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch jobs');
       const data = await response.json();
-      setJobs(data);
+      // console.log('Fetched jobs:', JSON.stringify(data, null, 2));
+      setAllJobs(data);
+      setDisplayCount(ITEMS_PER_PAGE);
     } catch (error) {
       console.error('Error fetching jobs:', error);
     } finally {
@@ -82,15 +155,37 @@ export default function JobsList() {
           <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
             Loading jobs...
           </div>
-        ) : jobs.length === 0 ? (
+        ) : displayedJobs.length === 0 ? (
           <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
             No jobs found
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {jobs.map((job) => (
+          <div
+            ref={scrollContainerRef}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              maxHeight: '400px',
+              overflowY: 'auto',
+              paddingRight: '8px',
+            }}
+          >
+            {displayedJobs.map((job) => (
               <JobCard key={job.jobId} job={job} statusColor={getStatusBadgeColor(job.status)} />
             ))}
+            {allJobs.length > ITEMS_PER_PAGE && displayCount < allJobs.length && (
+              <div
+                style={{
+                  padding: '16px',
+                  textAlign: 'center',
+                  color: '#999',
+                  fontSize: '12px',
+                }}
+              >
+                Scroll for more
+              </div>
+            )}
           </div>
         )}
       </div>

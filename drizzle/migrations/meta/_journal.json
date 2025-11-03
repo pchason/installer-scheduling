@@ -8,6 +8,20 @@
       "when": 1761855674807,
       "tag": "0000_mute_selene",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1761929674000,
+      "tag": "0001_add_location_id_to_installers",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761929675000,
+      "tag": "0002_remove_location_id_from_installers",
+      "breakpoints": true
     }
   ]
 }
