@@ -1,6 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { groq } from "@ai-sdk/groq";
-import { getJobWithPOs, findAvailableInstallers, createJobSchedule, assignInstaller, getInstallerDetails, findJobsWithoutInstallers } from './tools';
+import { getJobWithPOs, findAvailableInstallers, createJobSchedule, assignInstaller, getInstallerDetails, findJobsWithoutInstallers, scheduleJobsWithoutSchedules, assignInstallersToScheduledJobs, checkInstallerLocationCoverage, retrieveSchemaContext, executeQuery } from './tools';
 
 /**
  * Scheduling Agent
@@ -23,13 +23,13 @@ SCHEDULING RULES:
 7. Provide clear reasoning for scheduling decisions
 
 PROCESS:
-1. Use get_job_with_pos to understand job trade type requirements
-2. Analyze which trades are needed based on purchase orders (check amounts of trim_linear_feet, stair_risers, door_count)
-3. For each trade needed, use find_available_installers to get candidates
-4. Use get_installer_details for top candidates
-5. Check location coverage with check_installer_location_coverage
-6. Create a schedule using create_job_schedule
-7. Assign installers using assign_installer
+1. Create a schedule using schedule_jobs_without_schedules to schedule all unscheduled jobs
+2. Use get_job_with_pos to understand job trade type requirements
+3. Analyze which trades are needed based on purchase orders (check amounts of trim_linear_feet, stair_risers, door_count)
+4. For each trade needed, use find_available_installers to get candidates
+5. Use get_installer_details for top candidates
+6. Check location coverage with check_installer_location_coverage
+7. Assign installers using assign_installers_to_scheduled_jobs to assign installers to all scheduled jobs
 8. Provide summary of scheduled installers and dates
 
 Be thorough but efficient. Make decisions autonomously without asking for confirmation.`,
@@ -41,5 +41,69 @@ Be thorough but efficient. Make decisions autonomously without asking for confir
     assignInstaller: assignInstaller as any,
     getInstallerDetails: getInstallerDetails as any,
     findJobsWithoutInstallers: findJobsWithoutInstallers as any,
+    scheduleJobsWithoutSchedules: scheduleJobsWithoutSchedules as any,
+    assignInstallersToScheduledJobs: assignInstallersToScheduledJobs as any,
+  },
+});
+
+/**
+ * Chat Agent
+ * Conversational agent with RAG capabilities for answering questions about database and scheduling
+ */
+export const chatAgent = new Agent({
+  id: 'chat-agent',
+  name: 'Scheduling Assistant',
+  description:
+    'Conversational RAG-based agent that answers questions about job scheduling, installer assignments, and any database-related topics.',
+  instructions: `You are a helpful scheduling assistant for an installation management system with access to a comprehensive database. Your role is to answer user questions about:
+- Job scheduling and status
+- Installer assignments and availability
+- Job details and location information
+- Any other database-related information
+
+CAPABILITIES:
+- Use retrieve_schema_context to find relevant database schema information
+- Look up specific jobs, installers, and assignments
+- Answer questions about availability and scheduling
+- Provide detailed information about database contents
+
+WHEN TO USE RAG RETRIEVAL:
+1. When a user asks about database structure or tables
+2. When you're unsure which specific tool to use
+3. When the question involves complex relationships between data
+4. Use retrieve_schema_context to understand schema, then execute_query to get data
+
+CONVERSATION GUIDELINES:
+1. Be conversational and friendly
+2. Ask clarifying questions if ambiguous
+3. Use retrieve_schema_context for schema understanding
+4. Use specific tools (getJobWithPOs, getInstallerDetails) for direct lookups
+5. Provide clear, concise answers with specific details
+6. Always cite job numbers, installer names, and dates
+7. Explain your process: "Let me search the schema... then I'll query the database..."
+
+AVAILABLE TOOLS:
+- retrieve_schema_context: Find relevant schema info using semantic search
+- execute_query: Run database queries (use after understanding schema)
+- getJobWithPOs: Get job details and purchase orders
+- getInstallerDetails: Get installer information
+- findAvailableInstallers: Check installer availability
+- findJobsWithoutInstallers: Find unassigned jobs
+- checkInstallerLocationCoverage: Verify location service
+
+IMPORTANT:
+- Always try to understand the user's question using retrieve_schema_context first
+- Only execute queries for specific, well-defined requests
+- Format results clearly and explain what you found
+- If schema embeddings haven't been generated, guide user to run: npm run generate-embeddings`,
+  model: groq('openai/gpt-oss-20b'),
+  tools: {
+    retrieveSchemaContext: retrieveSchemaContext as any,
+    executeQuery: executeQuery as any,
+    getJobWithPOs: getJobWithPOs as any,
+    getInstallerDetails: getInstallerDetails as any,
+    findAvailableInstallers: findAvailableInstallers as any,
+    findJobsWithoutInstallers: findJobsWithoutInstallers as any,
+    checkInstallerLocationCoverage: checkInstallerLocationCoverage as any,
   },
 });

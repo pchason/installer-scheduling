@@ -38,7 +38,7 @@ Steps:
 5. Provide a summary of what was scheduled`;
 
         // Run the agent
-        const result = await schedulingAgent.run(prompt);
+        const result = await schedulingAgent.generate(prompt);
 
         return {
           jobId,

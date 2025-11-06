@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/app/api/error-handler';
+import { mastra } from '@/lib/mastra';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,35 +24,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For now, return a simple response
-    // In a real implementation, you would:
-    // 1. Call an LLM API (OpenAI, Claude, etc.)
-    // 2. Use the LLM to understand the user's intent
-    // 3. Call appropriate database queries or APIs
-    // 4. Return a relevant response
+    // Convert messages to the format expected by the agent
+    const conversationHistory = messages.map((msg: any) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
 
-    const userMessage = lastMessage.content;
-
-    // Simple intent detection based on keywords
-    let responseText = '';
-
-    if (userMessage.toLowerCase().includes('job')) {
-      responseText =
-        'I can help you manage jobs. You can view active jobs, create new jobs, or check job status.';
-    } else if (userMessage.toLowerCase().includes('install') || userMessage.toLowerCase().includes('schedule')) {
-      responseText =
-        'I can help you with installer scheduling. You can assign installers to jobs, view schedules, and manage availability.';
-    } else if (userMessage.toLowerCase().includes('booking') || userMessage.toLowerCase().includes('assignment')) {
-      responseText =
-        'I can help you with installer assignments. You can view all assignments, create new ones, or modify existing schedules.';
-    } else {
-      responseText =
-        'I can help you manage installation scheduling. Ask me about jobs, installers, schedules, or assignments.';
-    }
+    // Use the chat agent to generate a response
+    const response = await mastra.getAgent('chatAgent').generate(conversationHistory, {
+      maxSteps: 10,
+    });
 
     return NextResponse.json({
       role: 'assistant',
-      content: responseText,
+      content: response.text,
     });
   } catch (error) {
     return handleApiError(error);

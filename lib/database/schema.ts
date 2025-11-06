@@ -207,6 +207,26 @@ export const chatMessages = pgTable(
   })
 );
 
+// Schema embeddings table for RAG
+export const schemaEmbeddings = pgTable(
+  'schema_embeddings',
+  {
+    embeddingId: serial('embedding_id').primaryKey(),
+    schemaKey: varchar('schema_key', { length: 255 }).notNull().unique(),
+    description: text('description').notNull(),
+    embedding: text('embedding').notNull(), // Store as JSON text since pgvector type might not be available
+    category: varchar('category', { length: 50 }).notNull(), // 'table', 'field', 'relationship', 'enum'
+    metadata: jsonb('metadata'), // Store additional metadata
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    schemaKeyIdx: index('schema_embeddings_key_idx').on(table.schemaKey),
+    categoryIdx: index('schema_embeddings_category_idx').on(table.category),
+    createdIdx: index('schema_embeddings_created_idx').on(table.createdAt),
+  })
+);
+
 // Relations
 export const installersRelations = relations(installers, ({ many }) => ({
   locations: many(installerLocations),

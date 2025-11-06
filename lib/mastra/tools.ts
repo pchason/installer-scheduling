@@ -1,8 +1,10 @@
 import { createTool } from '@mastra/core';
 import { z } from 'zod';
 import { db } from '@/lib/database/client';
-import { jobs, purchaseOrders, installers, geographicLocations, jobSchedules, installerAssignments } from '@/lib/database/schema';
-import { eq, and, notInArray } from 'drizzle-orm';
+import { jobs, purchaseOrders, installers, geographicLocations, jobSchedules, installerAssignments, installerLocations, schemaEmbeddings } from '@/lib/database/schema';
+import { eq, and, notInArray, or } from 'drizzle-orm';
+import { openai } from '@ai-sdk/openai';
+import { embed } from 'ai';
 
 /**
  * Tool: Get job with purchase orders
@@ -253,3 +255,434 @@ export const findJobsWithoutInstallers = createTool({
     }
   },
 });
+
+/**
+ * Tool: Schedule jobs without schedules
+ * Finds all jobs without schedules and creates schedules for each using their start_date and end_date
+ */
+export const scheduleJobsWithoutSchedules = createTool({
+  id: 'schedule_jobs_without_schedules',
+  description: 'Find all jobs without schedules and create schedules for each job using their start_date and end_date from the jobs table',
+  inputSchema: z.object({
+    limit: z.number().default(10).describe('Maximum number of jobs to schedule'),
+  }),
+  execute: async ({context}) => {
+    const { limit } = context;
+    try {
+      // Find jobs that don't have any schedules
+      const jobsWithoutSchedules = await db
+        .selectDistinct({
+          jobId: jobs.jobId,
+          jobNumber: jobs.jobNumber,
+          startDate: jobs.startDate,
+          endDate: jobs.endDate,
+          streetAddress: jobs.streetAddress,
+          city: jobs.city,
+          state: jobs.state,
+        })
+        .from(jobs)
+        .where(
+          notInArray(
+            jobs.jobId,
+            db
+              .selectDistinct({ jobId: jobSchedules.jobId })
+              .from(jobSchedules)
+          )
+        )
+        .limit(limit);
+
+      if (jobsWithoutSchedules.length === 0) {
+        return { message: 'No jobs without schedules found', scheduledJobs: [] };
+      }
+
+      const scheduledJobs = [];
+
+      // Create schedules for each job
+      for (const job of jobsWithoutSchedules) {
+        if (!job.startDate) {
+          continue; // Skip jobs without a start_date
+        }
+
+        try {
+          const scheduleResult = await db
+            .insert(jobSchedules)
+            .values({
+              jobId: job.jobId,
+              scheduledDate: job.startDate,
+              notes: `Job scheduled from ${job.startDate} to ${job.endDate || job.startDate}`,
+              status: 'scheduled',
+            })
+            .returning();
+
+          if (scheduleResult && scheduleResult.length > 0) {
+            // Update the job status to 'scheduled'
+            await db
+              .update(jobs)
+              .set({ status: 'scheduled' })
+              .where(eq(jobs.jobId, job.jobId));
+
+            scheduledJobs.push({
+              jobId: job.jobId,
+              jobNumber: job.jobNumber,
+              scheduleId: scheduleResult[0]?.scheduleId,
+              startDate: job.startDate,
+              endDate: job.endDate,
+              address: `${job.streetAddress}, ${job.city}, ${job.state}`,
+            });
+          }
+        } catch (jobError) {
+          scheduledJobs.push({
+            jobId: job.jobId,
+            jobNumber: job.jobNumber,
+            error: `Failed to schedule: ${jobError}`,
+          });
+        }
+      }
+
+      return {
+        message: `Successfully scheduled ${scheduledJobs.filter((j) => !j.error).length} jobs`,
+        scheduledJobs: scheduledJobs,
+      };
+    } catch (error) {
+      return { error: `Failed to schedule jobs without schedules: ${error}` };
+    }
+  },
+});
+
+/**
+ * Tool: Assign installers to all jobs with schedules but no assignments
+ * Automatically finds and assigns the best-suited installers for each trade in each job
+ */
+export const assignInstallersToScheduledJobs = createTool({
+  id: 'assign_installers_to_scheduled_jobs',
+  description: 'Find all jobs with schedules but no installer assignments, analyze their trade needs, and automatically assign the best-suited installers',
+  inputSchema: z.object({
+    limit: z.number().default(10).describe('Maximum number of jobs to process'),
+  }),
+  execute: async ({context}) => {
+    const { limit } = context;
+    try {
+      // Find jobs that have schedules but no assignments
+      const jobsWithSchedulesNoAssignments = await db
+        .selectDistinct({
+          jobId: jobs.jobId,
+          jobNumber: jobs.jobNumber,
+          scheduleId: jobSchedules.scheduleId,
+          scheduledDate: jobSchedules.scheduledDate,
+          locationId: jobs.locationId,
+        })
+        .from(jobSchedules)
+        .innerJoin(jobs, eq(jobs.jobId, jobSchedules.jobId))
+        .where(
+          notInArray(
+            jobSchedules.scheduleId,
+            db
+              .selectDistinct({ scheduleId: installerAssignments.scheduleId })
+              .from(installerAssignments)
+          )
+        )
+        .limit(limit);
+
+      if (jobsWithSchedulesNoAssignments.length === 0) {
+        return { message: 'No jobs with schedules but no assignments found', assignments: [] };
+      }
+
+      const assignments = [];
+
+      // Process each job
+      for (const jobWithSchedule of jobsWithSchedulesNoAssignments) {
+        try {
+          // Get purchase orders for this job
+          const pos = await db
+            .select()
+            .from(purchaseOrders)
+            .where(eq(purchaseOrders.jobId, jobWithSchedule.jobId));
+
+          if (pos.length === 0) continue;
+
+          // Determine trades needed and how many installers each needs
+          const tradesNeeded: Array<{ trade: 'trim' | 'stairs' | 'doors'; poId: number; installersNeeded: number }> = [];
+
+          for (const po of pos) {
+            if (po.trimLinearFeet && parseFloat(po.trimLinearFeet.toString()) > 0) {
+              // Assign 2 trim installers if trim > 400 linear feet, otherwise 1
+              const trimAmount = parseFloat(po.trimLinearFeet.toString());
+              const trimInstallersNeeded = trimAmount > 400 ? 2 : 1;
+              tradesNeeded.push({ trade: 'trim', poId: po.poId, installersNeeded: trimInstallersNeeded });
+            }
+            if (po.stairRisers && po.stairRisers > 0) {
+              // Assign 2 stairs installers if risers > 25, otherwise 1
+              const stairInstallersNeeded = po.stairRisers > 25 ? 2 : 1;
+              tradesNeeded.push({ trade: 'stairs', poId: po.poId, installersNeeded: stairInstallersNeeded });
+            }
+            if (po.doorCount && po.doorCount > 0) {
+              // Assign 2 doors installers if door count > 15, otherwise 1
+              const doorInstallersNeeded = po.doorCount > 15 ? 2 : 1;
+              tradesNeeded.push({ trade: 'doors', poId: po.poId, installersNeeded: doorInstallersNeeded });
+            }
+          }
+
+          // Assign installers for each needed trade
+          for (const neededTrade of tradesNeeded) {
+            // Assign the required number of installers for this trade
+            for (let installerIndex = 0; installerIndex < neededTrade.installersNeeded; installerIndex++) {
+              try {
+                // Find available installers for this trade in the job's geographic location
+                // Exclude installers already assigned to this trade on the same scheduled date
+                const availableInstallers = await db
+                  .selectDistinct({ installerId: installers.installerId, firstName: installers.firstName, lastName: installers.lastName })
+                  .from(installers)
+                  .innerJoin(installerLocations, eq(installers.installerId, installerLocations.installerId))
+                  .where(
+                    and(
+                      eq(installers.trade, neededTrade.trade),
+                      eq(installers.isActive, true),
+                      jobWithSchedule.locationId ? eq(installerLocations.locationId, jobWithSchedule.locationId) : undefined,
+                      notInArray(
+                        installers.installerId,
+                        db
+                          .select({ installerId: installerAssignments.installerId })
+                          .from(installerAssignments)
+                          .innerJoin(jobSchedules, eq(installerAssignments.scheduleId, jobSchedules.scheduleId))
+                          .innerJoin(purchaseOrders, eq(installerAssignments.poId, purchaseOrders.poId))
+                          .where(
+                            and(
+                              eq(jobSchedules.scheduledDate, jobWithSchedule.scheduledDate),
+                              // Only exclude installers assigned to THIS trade on this date
+                              or(
+                                and(eq(installers.trade, 'trim'), purchaseOrders.trimLinearFeet !== null),
+                                and(eq(installers.trade, 'stairs'), purchaseOrders.stairRisers !== null),
+                                and(eq(installers.trade, 'doors'), purchaseOrders.doorCount !== null)
+                              )
+                            )
+                          )
+                      )
+                    )
+                  );
+
+                if (availableInstallers.length === 0) {
+                  assignments.push({
+                    jobId: jobWithSchedule.jobId,
+                    jobNumber: jobWithSchedule.jobNumber,
+                    trade: neededTrade.trade,
+                    poId: neededTrade.poId,
+                    status: 'failed',
+                    reason: `No available installers for this trade (installer ${installerIndex + 1} of ${neededTrade.installersNeeded})`,
+                  });
+                  continue;
+                }
+
+                // Use round-robin selection: pick installer based on their ID modulo the total count
+                // This distributes assignments evenly across available installers
+                const roundRobinIndex = (neededTrade.poId + installerIndex) % availableInstallers.length;
+                const selectedInstaller = availableInstallers[roundRobinIndex];
+
+                if (!selectedInstaller) {
+                  assignments.push({
+                    jobId: jobWithSchedule.jobId,
+                    jobNumber: jobWithSchedule.jobNumber,
+                    trade: neededTrade.trade,
+                    poId: neededTrade.poId,
+                    status: 'failed',
+                    reason: `No installers available without scheduling conflicts (installer ${installerIndex + 1} of ${neededTrade.installersNeeded})`,
+                  });
+                  continue;
+                }
+
+                const assignmentResult = await db
+                  .insert(installerAssignments)
+                  .values({
+                    scheduleId: jobWithSchedule.scheduleId,
+                    installerId: selectedInstaller.installerId,
+                    poId: neededTrade.poId,
+                    assignmentStatus: 'assigned',
+                    notes: `Auto-assigned ${selectedInstaller.firstName} ${selectedInstaller.lastName} for ${neededTrade.trade} work (${installerIndex + 1} of ${neededTrade.installersNeeded})`,
+                  })
+                  .returning();
+
+                if (assignmentResult && assignmentResult.length > 0) {
+                  assignments.push({
+                    jobId: jobWithSchedule.jobId,
+                    jobNumber: jobWithSchedule.jobNumber,
+                    scheduleId: jobWithSchedule.scheduleId,
+                    trade: neededTrade.trade,
+                    installerId: selectedInstaller.installerId,
+                    installerName: `${selectedInstaller.firstName} ${selectedInstaller.lastName}`,
+                    poId: neededTrade.poId,
+                    status: 'assigned',
+                  });
+                }
+              } catch (tradeError) {
+                assignments.push({
+                  jobId: jobWithSchedule.jobId,
+                  jobNumber: jobWithSchedule.jobNumber,
+                  trade: neededTrade.trade,
+                  poId: neededTrade.poId,
+                  status: 'failed',
+                  reason: `Error assigning installer: ${tradeError}`,
+                });
+              }
+            }
+          }
+        } catch (jobError) {
+          assignments.push({
+            jobId: jobWithSchedule.jobId,
+            jobNumber: jobWithSchedule.jobNumber,
+            status: 'failed',
+            reason: `Error processing job: ${jobError}`,
+          });
+        }
+      }
+
+      const successCount = assignments.filter((a) => a.status === 'assigned').length;
+      const failedCount = assignments.filter((a) => a.status === 'failed').length;
+
+      return {
+        message: `Assigned installers to ${successCount} positions, ${failedCount} positions could not be assigned`,
+        totalAssignments: assignments.length,
+        successfulAssignments: successCount,
+        failedAssignments: failedCount,
+        assignments: assignments,
+      };
+    } catch (error) {
+      return { error: `Failed to assign installers to scheduled jobs: ${error}` };
+    }
+  },
+});
+
+/**
+ * Tool: Retrieve relevant schema context using semantic search
+ * Finds database schema information most relevant to the user's question
+ */
+export const retrieveSchemaContext = createTool({
+  id: 'retrieve_schema_context',
+  description: 'Find relevant database schema information based on a user question using semantic search',
+  inputSchema: z.object({
+    question: z.string().describe('The user question about the database'),
+    limit: z.number().default(5).describe('Maximum number of schema results to return'),
+  }),
+  execute: async ({ context }) => {
+    const { question, limit } = context;
+    try {
+      // Generate embedding for the user's question
+      const questionEmbedding = await embed({
+        model: openai.embedding('text-embedding-3-small'),
+        value: question,
+      });
+
+      // Retrieve all embeddings from the database
+      const allEmbeddings = await db.select().from(schemaEmbeddings);
+
+      if (allEmbeddings.length === 0) {
+        return {
+          error: 'No schema embeddings found. Please run schema embedding generation first.',
+          schemaContext: [],
+        };
+      }
+
+      // Calculate cosine similarity between question embedding and stored embeddings
+      interface ScoredEmbedding {
+        schemaKey: string;
+        description: string;
+        category: string;
+        similarity: number;
+      }
+
+      const scored: ScoredEmbedding[] = allEmbeddings
+        .map((stored) => {
+          const storedEmbedding = JSON.parse(stored.embedding) as number[];
+          const similarity = cosineSimilarity(questionEmbedding.embedding, storedEmbedding);
+          return {
+            schemaKey: stored.schemaKey,
+            description: stored.description,
+            category: stored.category,
+            similarity,
+          };
+        })
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, limit);
+
+      return {
+        question,
+        relevantSchema: scored.map((item) => ({
+          key: item.schemaKey,
+          description: item.description,
+          category: item.category,
+          relevanceScore: item.similarity.toFixed(3),
+        })),
+        totalResults: scored.length,
+      };
+    } catch (error) {
+      return { error: `Failed to retrieve schema context: ${error}` };
+    }
+  },
+});
+
+/**
+ * Tool: Execute a database query
+ * Executes a SQL query and returns the results
+ */
+export const executeQuery = createTool({
+  id: 'execute_query',
+  description: 'Execute a database query and return the results',
+  inputSchema: z.object({
+    query: z.string().describe('The SQL query to execute'),
+    description: z.string().describe('Natural language description of what this query does'),
+  }),
+  execute: async ({ context }) => {
+    const { query, description } = context;
+    try {
+      // Note: This is a simplified version. In production, you'd want to:
+      // 1. Validate the query for safety
+      // 2. Use a parameterized query approach
+      // 3. Add rate limiting and audit logging
+
+      console.log(`Executing query: ${description}`);
+      console.log(`SQL: ${query}`);
+
+      const result = await db.execute(query as any);
+
+      return {
+        description,
+        success: true,
+        rowCount: (result as any)?.rowCount || 0,
+        results: result,
+      };
+    } catch (error) {
+      return {
+        description,
+        success: false,
+        error: `Failed to execute query: ${error}`,
+      };
+    }
+  },
+});
+
+/**
+ * Helper function: Calculate cosine similarity between two vectors
+ */
+function cosineSimilarity(vecA: number[] | undefined, vecB: number[] | undefined): number {
+  if (!vecA || !vecB || vecA.length !== vecB.length) {
+    return 0;
+  }
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < vecA.length; i++) {
+    const a = vecA[i];
+    const b = vecB[i];
+    if (a !== undefined && b !== undefined) {
+      dotProduct += a * b;
+      normA += a * a;
+      normB += b * b;
+    }
+  }
+
+  if (normA === 0 || normB === 0) {
+    return 0;
+  }
+
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}

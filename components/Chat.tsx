@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -96,7 +97,49 @@ export default function Chat() {
                   wordWrap: 'break-word',
                 }}
               >
-                {msg.content}
+                {msg.role === 'user' ? (
+                  msg.content
+                ) : (
+                  <ReactMarkdown
+                    components={{
+                      p: ({ node, ...props }) => <p style={{ margin: '0.5em 0' }} {...props} />,
+                      strong: ({ node, ...props }) => <strong style={{ fontWeight: 'bold' }} {...props} />,
+                      em: ({ node, ...props }) => <em style={{ fontStyle: 'italic' }} {...props} />,
+                      ul: ({ node, ...props }) => <ul style={{ margin: '0.5em 0', paddingLeft: '1.5em' }} {...props} />,
+                      ol: ({ node, ...props }) => <ol style={{ margin: '0.5em 0', paddingLeft: '1.5em' }} {...props} />,
+                      li: ({ node, ...props }) => <li style={{ margin: '0.25em 0' }} {...props} />,
+                      code: ({ node, ...props }: any) => {
+                        const isInline = !props.className;
+                        return isInline ? (
+                          <code
+                            style={{
+                              backgroundColor: 'rgba(0,0,0,0.1)',
+                              padding: '0.2em 0.4em',
+                              borderRadius: '3px',
+                              fontFamily: 'monospace',
+                            }}
+                            {...props}
+                          />
+                        ) : (
+                          <code
+                            style={{
+                              backgroundColor: 'rgba(0,0,0,0.1)',
+                              padding: '0.8em',
+                              borderRadius: '4px',
+                              fontFamily: 'monospace',
+                              display: 'block',
+                              margin: '0.5em 0',
+                            }}
+                            {...props}
+                          />
+                        );
+                      },
+                      a: ({ node, ...props }) => <a style={{ color: '#0066cc', textDecoration: 'underline' }} {...props} />,
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                )}
               </div>
             </div>
           ))}

@@ -23,14 +23,32 @@ An AI-powered scheduling system for managing construction trades installers (200
 ## Project Structure
 
 ```
-src/
-├── database/          # Drizzle schema, migrations, client
-├── api/               # API routes and controllers
-├── services/          # Business logic (scheduling, conflicts)
-├── agents/            # Mastra AI agents
-├── middleware/        # Error handling, auth, etc.
-├── utils/             # Logger, errors, helpers
-└── types/             # TypeScript type definitions
+app/
+├── api/                   # API routes
+│   ├── jobs/              # Job management endpoints
+│   ├── installers/        # Installer management endpoints
+│   ├── purchase-orders/   # Purchase order endpoints
+│   ├── chat/              # Chat interface endpoints
+│   ├── copilot/           # CopilotKit integration
+│   └── schedule-jobs-assign-installers/  # Automated scheduling
+├── job/
+│   └── create/            # Job creation UI
+└── layout.tsx             # Root layout
+
+components/
+├── JobCard.tsx            # Job display component
+├── InstallerList.tsx      # Installer listing
+└── ...                    # Other UI components
+
+lib/
+├── database/              # Drizzle schema, migrations, client
+├── mastra/                # Mastra AI agents and tools
+├── types/                 # TypeScript type definitions
+└── utils/                 # Helper utilities
+
+drizzle/
+├── migrations/            # Database migrations
+└── schema.ts              # Database schema definitions
 ```
 
 ## Getting Started
@@ -56,10 +74,11 @@ cp .env.example .env
 ```
 
 Update these variables:
-- `DATABASE_URL` - PostgreSQL connection string
+- `DATABASE_URL` - PostgreSQL connection string (Supabase)
 - `SUPABASE_URL` - Your Supabase project URL
 - `SUPABASE_KEY` - Your Supabase anon key
-- `OPENAI_API_KEY` - For AI features
+- `GROQ_API_KEY` - Groq API key for LLM features
+- `AXIOM_TOKEN` - Axiom.co token for logging (optional)
 
 ### Database Setup
 
@@ -89,33 +108,66 @@ npm run build
 npm start
 ```
 
+## Available Commands
+
+From `package.json`:
+
+- `npm run dev` - Start development server (localhost:3000)
+- `npm run build` - Build for production
+- `npm start` - Start production server
+- `npm run lint` - Run linter
+- `npm run db:push` - Push schema changes to database
+- `npm run db:migrate` - Run database migrations
+- `npm run db:studio` - Open Drizzle Studio to view/edit database
+
 ## API Endpoints
 
-- `GET /health` - Health check
-- `GET /api` - API root
+**Jobs**
+- `GET /api/jobs` - List all jobs
+- `POST /api/jobs` - Create a new job
+- `GET /api/jobs/[id]` - Get job details
+- `PUT /api/jobs/[id]` - Update job status
+
+**Installers**
+- `GET /api/installers` - List all installers
 - `POST /api/installers` - Create installer
-- `GET /api/installers` - List installers
-- `POST /api/bookings` - Create booking (with conflict check)
-- `GET /api/locations/:id/bookings` - Get location bookings
+
+**Purchase Orders**
+- `GET /api/purchase-orders` - List purchase orders
+- `POST /api/purchase-orders` - Create purchase order
+
+**Scheduling & Assignment**
+- `POST /api/schedule-jobs-assign-installers` - Automated job scheduling and installer assignment
+
+**Chat & AI**
 - `POST /api/chat` - Chat with AI agent
+- `POST /api/copilot` - CopilotKit integration
+
+**Utilities**
+- `GET /api/health` - Health check
 
 ## Database Schema
 
 ### Core Tables
 
-- **installers** - Installer profiles with trade categories
-- **locations** - Construction job locations
-- **bookings** - Scheduled installer assignments with conflict constraints
-- **installer_availability** - Weekly availability windows
+- **jobs** - Construction job records with location, status, and date range
+- **job_schedules** - Scheduled dates for jobs with status tracking
+- **installers** - Installer profiles with trade specialization (trim, stairs, doors)
+- **installer_locations** - Many-to-many mapping of installers to service locations
+- **geographic_locations** - Geographic service areas
+- **purchase_orders** - Line items for jobs specifying quantities for each trade
+- **installer_assignments** - Installer-to-schedule assignments
 - **chat_messages** - Chat conversation history
-- **scheduling_rules** - Custom scheduling constraints
 
-### Key Constraint
+### Key Features
 
-The system prevents scheduling conflicts through:
-1. Database index on `(location_id, trade_type, start_time)`
-2. Application-level validation before booking
-3. Trade category enforcement: Only one installer per trade type at same location during overlapping times
+- **Status Tracking**: Jobs progress from pending → scheduled → in_progress → completed
+- **Multi-Installer Support**: Automatically assigns multiple installers per trade when workload exceeds thresholds:
+  - Trim: 2 installers if linear feet > 400
+  - Stairs: 2 installers if risers > 25
+  - Doors: 2 installers if door count > 15
+- **Conflict Prevention**: No installer can be assigned to multiple jobs on the same date
+- **Location-Based Matching**: Installers are assigned only to jobs within their service areas
 
 ## Next Steps
 

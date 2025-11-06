@@ -1,12 +1,12 @@
 import { Mastra } from '@mastra/core';
-import { schedulingAgent } from './agents';
+import { schedulingAgent, chatAgent } from './agents';
 import { PostgresStore } from "@mastra/pg";
 import { PinoLogger } from '@mastra/loggers';
 import { HttpTransport } from '@mastra/loggers/http';
 import type { LogLevel } from '@mastra/core/logger';
 
 export const mastra = new Mastra({
-  agents: { schedulingAgent },
+  agents: { schedulingAgent, chatAgent },
   storage: new PostgresStore({
     connectionString: process.env.DATABASE_URL,
   }),
