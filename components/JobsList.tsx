@@ -216,10 +216,13 @@ function JobCard({ job, statusColor }: JobCardProps) {
         (e.currentTarget as HTMLDivElement).style.backgroundColor = '#fafafa';
       }}
     >
+      <div style={{ fontSize: '11px', color: '#999', marginBottom: '6px', fontWeight: 500 }}>
+        Job {job.jobId}
+      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '8px' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>
-            {job.jobNumber}
+            Job #: {job.jobNumber}
           </div>
           <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
             {job.streetAddress}, {job.city}, {job.state}
