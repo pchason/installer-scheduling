@@ -11,5 +11,5 @@ steps:
       git config --global user.email "paulchason@gmail.com"
       git config --global user.name "Paul Chason"
       git remote add github https://pchason:$(GITHUB_PAT)@github.com/pchason/installer-scheduling.git
-      git push github HEAD:main
+      git push github HEAD:refs/heads/main
     displayName: 'Mirror to GitHub'
