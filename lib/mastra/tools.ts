@@ -5,6 +5,7 @@ import { jobs, purchaseOrders, installers, geographicLocations, jobSchedules, in
 import { eq, and, notInArray } from 'drizzle-orm';
 import { openai } from '@ai-sdk/openai';
 import { embed } from 'ai';
+import { InferenceClient } from '@huggingface/inference';
 
 /**
  * Tool: Get job with purchase orders
@@ -596,11 +597,13 @@ export const retrieveSchemaContext = createTool({
   }),
   execute: async ({ context }) => {
     const { question, limit } = context;
+    const hf = new InferenceClient(process.env.HF_API_TOKEN);
+
     try {
       // Generate embedding for the user's question
-      const questionEmbedding = await embed({
-        model: openai.embedding('text-embedding-3-small'),
-        value: question,
+      const questionEmbedding = await hf.featureExtraction({
+        model: 'sentence-transformers/all-MiniLM-L6-v2',
+        inputs: question,
       });
 
       // Retrieve all embeddings from the database
@@ -623,8 +626,13 @@ export const retrieveSchemaContext = createTool({
 
       const scored: ScoredEmbedding[] = allEmbeddings
         .map((stored) => {
-          const storedEmbedding = JSON.parse(stored.embedding) as number[];
-          const similarity = cosineSimilarity(questionEmbedding.embedding, storedEmbedding);
+          let storedEmbedding: number[] | undefined;
+          try {
+            storedEmbedding = JSON.parse(stored.embedding) as number[];
+          } catch {
+            storedEmbedding = undefined;
+          }
+          const similarity = cosineSimilarity(questionEmbedding as number[], storedEmbedding);
           return {
             schemaKey: stored.schemaKey,
             description: stored.description,

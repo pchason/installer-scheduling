@@ -23,12 +23,59 @@ interface EmbeddingRecord {
   metadata?: Record<string, any>;
 }
 
+// Convert camelCase to snake_case
+function camelToSnake(str: string): string {
+  return str.replace(/([A-Z])/g, '_$1').toLowerCase();
+}
+
+// Convert camelCase field names in descriptions to snake_case
+function convertDescriptionToSnakeCase(desc: string): string {
+  // Map of camelCase field names to their snake_case equivalents
+  const fieldMappings: Record<string, string> = {
+    installerId: 'installer_id',
+    firstName: 'first_name',
+    lastName: 'last_name',
+    isActive: 'is_active',
+    locationId: 'location_id',
+    locationName: 'location_name',
+    zipCode: 'zip_code',
+    jobId: 'job_id',
+    jobNumber: 'job_number',
+    streetAddress: 'street_address',
+    startDate: 'start_date',
+    endDate: 'end_date',
+    poId: 'po_id',
+    poNumber: 'po_number',
+    trimLinearFeet: 'trim_linear_feet',
+    stairRisers: 'stair_risers',
+    doorCount: 'door_count',
+    scheduleId: 'schedule_id',
+    scheduledDate: 'scheduled_date',
+    assignmentId: 'assignment_id',
+    assignmentStatus: 'assignment_status',
+    messageId: 'message_id',
+    userId: 'user_id',
+    messageText: 'message_text',
+    responseText: 'response_text',
+  };
+
+  let result = desc;
+  Object.entries(fieldMappings).forEach(([camelCase, snakeCase]) => {
+    // Replace both standalone and in expressions like "table.fieldName"
+    result = result.replace(new RegExp(`\\b${camelCase}\\b`, 'g'), snakeCase);
+  });
+
+  return result;
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('🚀 Starting schema embedding generation via API...');
 
     // Generate schema descriptions
-    const descriptions = generateSchemaDescriptions();
+    let descriptions = generateSchemaDescriptions();
+    // Convert all camelCase field names to snake_case
+    descriptions = descriptions.map(convertDescriptionToSnakeCase);
     console.log(`Generated ${descriptions.length} schema descriptions`);
 
     // Categorize descriptions
