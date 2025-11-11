@@ -1,0 +1,19 @@
+{
+    "buildCommand": "npm run build",
+    "outputDirectory": ".next",
+    "env": [
+      "DATABASE_URL",
+      "OPENAI_API_KEY",
+      "HF_API_TOKEN",
+      "GROQ_API_KEY",
+      "AXIOM_TOKEN",
+      "AXIOM_DATASET"
+    ],
+    "functions": {
+      "app/api/**/*.ts": {
+        "memory": 1024,
+        "maxDuration": 60
+      }
+    }
+  }
+  
