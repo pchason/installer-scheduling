@@ -30,14 +30,44 @@ export async function POST(request: NextRequest) {
       content: msg.content,
     }));
 
-    // Use the chat agent to generate a response
-    const response = await mastra.getAgent('chatAgent').generate(conversationHistory, {
-      maxSteps: 10,
+    // Generate streaming response using ReadableStream
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        try {
+          // Use the chat agent to generate a response
+          const response = await mastra.getAgent('chatAgent').generate(conversationHistory, {
+            maxSteps: 10,
+          });
+
+          // Stream the response character by character for a streaming effect
+          const text = response.text;
+          const chunkSize = 5; // Stream in chunks of 5 characters
+          for (let i = 0; i < text.length; i += chunkSize) {
+            const chunk = text.substring(i, i + chunkSize);
+            const sseMessage = `data: ${JSON.stringify({ type: 'chunk', content: chunk })}\n\n`;
+            controller.enqueue(encoder.encode(sseMessage));
+            // Add a small delay to make streaming visible
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+
+          // Send completion message
+          controller.enqueue(encoder.encode('data: {"type": "done"}\n\n'));
+          controller.close();
+        } catch (error) {
+          const errorMessage = `data: ${JSON.stringify({ type: 'error', error: (error as Error).message })}\n\n`;
+          controller.enqueue(encoder.encode(errorMessage));
+          controller.close();
+        }
+      },
     });
 
-    return NextResponse.json({
-      role: 'assistant',
-      content: response.text,
+    return new NextResponse(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
     });
   } catch (error) {
     return handleApiError(error);

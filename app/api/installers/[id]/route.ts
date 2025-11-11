@@ -6,10 +6,11 @@ import { eq } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
-    const installerId = parseInt(params.id, 10);
+    const installerId = parseInt(id, 10);
 
     if (isNaN(installerId)) {
       return NextResponse.json(

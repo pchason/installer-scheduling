@@ -1,4 +1,5 @@
 import { Workflow } from '@mastra/core';
+import { z } from 'zod';
 import { schedulingAgent } from './agents';
 
 /**
@@ -7,17 +8,27 @@ import { schedulingAgent } from './agents';
  */
 export const autonomousSchedulingWorkflow = new Workflow({
   id: 'autonomous-scheduling',
-  name: 'Autonomous Job Scheduling',
   description: 'Automatically schedule installers when a new job is created',
-  triggers: {
-    webhook: {
-      path: '/webhooks/job-created',
-    },
-  },
-  steps: {
-    analyzeAndSchedule: {
+  inputSchema: z.object({
+    jobId: z.number(),
+  }),
+  outputSchema: z.object({
+    jobId: z.number(),
+    agentResponse: z.any(),
+    timestamp: z.string(),
+  }),
+  steps: [
+    {
       id: 'analyze-and-schedule',
       description: 'Use the scheduling agent to analyze job and assign installers',
+      inputSchema: z.object({
+        jobId: z.number(),
+      }),
+      outputSchema: z.object({
+        jobId: z.number(),
+        agentResponse: z.any(),
+        timestamp: z.string(),
+      }),
       execute: async (context: any) => {
         const { jobId } = context.trigger.data;
 
@@ -47,5 +58,5 @@ Steps:
         };
       },
     },
-  },
+  ],
 });

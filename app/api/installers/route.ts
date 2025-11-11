@@ -21,13 +21,11 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(installers.isActive, active));
     }
 
-    let query = db.select().from(installers);
+    let baseQuery = db.select().from(installers);
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-
-    const result = await query;
+    const result = conditions.length > 0
+      ? await baseQuery.where(and(...conditions))
+      : await baseQuery;
     return NextResponse.json(result);
   } catch (error) {
     return handleApiError(error);

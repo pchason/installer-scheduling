@@ -47,8 +47,8 @@ async function seedJobDates() {
       }
 
       // Format dates as YYYY-MM-DD
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
+      const startDateStr = startDate.toISOString().split('T')[0]!;
+      const endDateStr = endDate.toISOString().split('T')[0]!;
 
       await db
         .update(schema.jobs)

@@ -20,16 +20,14 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(installerAssignments.installerId, parseInt(installerId, 10)));
     }
 
-    let query = db
+    let baseQuery = db
       .select()
       .from(installerAssignments)
       .innerJoin(jobSchedules, eq(jobSchedules.scheduleId, installerAssignments.scheduleId));
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-
-    const result = await query;
+    const result = conditions.length > 0
+      ? await baseQuery.where(and(...conditions))
+      : await baseQuery;
     return NextResponse.json(result);
   } catch (error) {
     return handleApiError(error);

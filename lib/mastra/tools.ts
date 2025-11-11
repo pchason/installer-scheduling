@@ -2,7 +2,7 @@ import { createTool } from '@mastra/core';
 import { z } from 'zod';
 import { db } from '@/lib/database/client';
 import { jobs, purchaseOrders, installers, geographicLocations, jobSchedules, installerAssignments, installerLocations, schemaEmbeddings } from '@/lib/database/schema';
-import { eq, and, notInArray, or } from 'drizzle-orm';
+import { eq, and, notInArray } from 'drizzle-orm';
 import { openai } from '@ai-sdk/openai';
 import { embed } from 'ai';
 
@@ -400,26 +400,47 @@ export const assignInstallersToScheduledJobs = createTool({
 
           if (pos.length === 0) continue;
 
-          // Determine trades needed and how many installers each needs
-          const tradesNeeded: Array<{ trade: 'trim' | 'stairs' | 'doors'; poId: number; installersNeeded: number }> = [];
+          // Aggregate trade measurements across all POs for this job
+          let totalTrimLinearFeet = 0;
+          let totalStairRisers = 0;
+          let totalDoorCount = 0;
+          const poIdsByTrade: { [key in 'trim' | 'stairs' | 'doors']?: number[] } = {};
 
           for (const po of pos) {
             if (po.trimLinearFeet && parseFloat(po.trimLinearFeet.toString()) > 0) {
-              // Assign 2 trim installers if trim > 400 linear feet, otherwise 1
-              const trimAmount = parseFloat(po.trimLinearFeet.toString());
-              const trimInstallersNeeded = trimAmount > 400 ? 2 : 1;
-              tradesNeeded.push({ trade: 'trim', poId: po.poId, installersNeeded: trimInstallersNeeded });
+              totalTrimLinearFeet += parseFloat(po.trimLinearFeet.toString());
+              if (!poIdsByTrade.trim) poIdsByTrade.trim = [];
+              poIdsByTrade.trim.push(po.poId);
             }
             if (po.stairRisers && po.stairRisers > 0) {
-              // Assign 2 stairs installers if risers > 25, otherwise 1
-              const stairInstallersNeeded = po.stairRisers > 25 ? 2 : 1;
-              tradesNeeded.push({ trade: 'stairs', poId: po.poId, installersNeeded: stairInstallersNeeded });
+              totalStairRisers += po.stairRisers;
+              if (!poIdsByTrade.stairs) poIdsByTrade.stairs = [];
+              poIdsByTrade.stairs.push(po.poId);
             }
             if (po.doorCount && po.doorCount > 0) {
-              // Assign 2 doors installers if door count > 15, otherwise 1
-              const doorInstallersNeeded = po.doorCount > 15 ? 2 : 1;
-              tradesNeeded.push({ trade: 'doors', poId: po.poId, installersNeeded: doorInstallersNeeded });
+              totalDoorCount += po.doorCount;
+              if (!poIdsByTrade.doors) poIdsByTrade.doors = [];
+              poIdsByTrade.doors.push(po.poId);
             }
+          }
+
+          // Determine trades needed and how many installers each needs (based on aggregated quantities)
+          const tradesNeeded: Array<{ trade: 'trim' | 'stairs' | 'doors'; poIds: number[]; installersNeeded: number }> = [];
+
+          if (totalTrimLinearFeet > 0) {
+            // Assign 2 trim installers if trim > 400 linear feet, otherwise 1
+            const trimInstallersNeeded = totalTrimLinearFeet > 400 ? 2 : 1;
+            tradesNeeded.push({ trade: 'trim', poIds: poIdsByTrade.trim || [], installersNeeded: trimInstallersNeeded });
+          }
+          if (totalStairRisers > 0) {
+            // Assign 2 stairs installers if risers > 25, otherwise 1
+            const stairInstallersNeeded = totalStairRisers > 25 ? 2 : 1;
+            tradesNeeded.push({ trade: 'stairs', poIds: poIdsByTrade.stairs || [], installersNeeded: stairInstallersNeeded });
+          }
+          if (totalDoorCount > 0) {
+            // Assign 2 doors installers if door count > 15, otherwise 1
+            const doorInstallersNeeded = totalDoorCount > 15 ? 2 : 1;
+            tradesNeeded.push({ trade: 'doors', poIds: poIdsByTrade.doors || [], installersNeeded: doorInstallersNeeded });
           }
 
           // Assign installers for each needed trade
@@ -445,15 +466,12 @@ export const assignInstallersToScheduledJobs = createTool({
                           .from(installerAssignments)
                           .innerJoin(jobSchedules, eq(installerAssignments.scheduleId, jobSchedules.scheduleId))
                           .innerJoin(purchaseOrders, eq(installerAssignments.poId, purchaseOrders.poId))
+                          .innerJoin(installers as any, eq(installerAssignments.installerId, installers.installerId))
                           .where(
                             and(
                               eq(jobSchedules.scheduledDate, jobWithSchedule.scheduledDate),
-                              // Only exclude installers assigned to THIS trade on this date
-                              or(
-                                and(eq(installers.trade, 'trim'), purchaseOrders.trimLinearFeet !== null),
-                                and(eq(installers.trade, 'stairs'), purchaseOrders.stairRisers !== null),
-                                and(eq(installers.trade, 'doors'), purchaseOrders.doorCount !== null)
-                              )
+                              // Only exclude installers of THIS trade on this date
+                              eq(installers.trade, neededTrade.trade)
                             )
                           )
                       )
@@ -465,16 +483,31 @@ export const assignInstallersToScheduledJobs = createTool({
                     jobId: jobWithSchedule.jobId,
                     jobNumber: jobWithSchedule.jobNumber,
                     trade: neededTrade.trade,
-                    poId: neededTrade.poId,
+                    poIds: neededTrade.poIds,
                     status: 'failed',
                     reason: `No available installers for this trade (installer ${installerIndex + 1} of ${neededTrade.installersNeeded})`,
                   });
                   continue;
                 }
 
+                // Assign to the first PO for this trade (all POs for a trade share the same installers)
+                const primaryPoId = neededTrade.poIds[0];
+
+                if (!primaryPoId) {
+                  assignments.push({
+                    jobId: jobWithSchedule.jobId,
+                    jobNumber: jobWithSchedule.jobNumber,
+                    trade: neededTrade.trade,
+                    poIds: neededTrade.poIds,
+                    status: 'failed',
+                    reason: `No POs found for ${neededTrade.trade} trade`,
+                  });
+                  continue;
+                }
+
                 // Use round-robin selection: pick installer based on their ID modulo the total count
                 // This distributes assignments evenly across available installers
-                const roundRobinIndex = (neededTrade.poId + installerIndex) % availableInstallers.length;
+                const roundRobinIndex = (primaryPoId + installerIndex) % availableInstallers.length;
                 const selectedInstaller = availableInstallers[roundRobinIndex];
 
                 if (!selectedInstaller) {
@@ -482,7 +515,7 @@ export const assignInstallersToScheduledJobs = createTool({
                     jobId: jobWithSchedule.jobId,
                     jobNumber: jobWithSchedule.jobNumber,
                     trade: neededTrade.trade,
-                    poId: neededTrade.poId,
+                    poIds: neededTrade.poIds,
                     status: 'failed',
                     reason: `No installers available without scheduling conflicts (installer ${installerIndex + 1} of ${neededTrade.installersNeeded})`,
                   });
@@ -494,7 +527,7 @@ export const assignInstallersToScheduledJobs = createTool({
                   .values({
                     scheduleId: jobWithSchedule.scheduleId,
                     installerId: selectedInstaller.installerId,
-                    poId: neededTrade.poId,
+                    poId: primaryPoId,
                     assignmentStatus: 'assigned',
                     notes: `Auto-assigned ${selectedInstaller.firstName} ${selectedInstaller.lastName} for ${neededTrade.trade} work (${installerIndex + 1} of ${neededTrade.installersNeeded})`,
                   })
@@ -508,7 +541,7 @@ export const assignInstallersToScheduledJobs = createTool({
                     trade: neededTrade.trade,
                     installerId: selectedInstaller.installerId,
                     installerName: `${selectedInstaller.firstName} ${selectedInstaller.lastName}`,
-                    poId: neededTrade.poId,
+                    poId: primaryPoId,
                     status: 'assigned',
                   });
                 }
@@ -517,7 +550,7 @@ export const assignInstallersToScheduledJobs = createTool({
                   jobId: jobWithSchedule.jobId,
                   jobNumber: jobWithSchedule.jobNumber,
                   trade: neededTrade.trade,
-                  poId: neededTrade.poId,
+                  poIds: neededTrade.poIds,
                   status: 'failed',
                   reason: `Error assigning installer: ${tradeError}`,
                 });

@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < records.length; i++) {
       const record = records[i];
+      if (!record) continue;
       try {
         const embeddingResult = await embed({
           model: openai.embedding('text-embedding-3-small'),

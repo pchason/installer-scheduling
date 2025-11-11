@@ -36,6 +36,10 @@ export default function Chat() {
     setInputValue('');
     setIsLoading(true);
 
+    // Add empty assistant message that will be streamed into
+    const assistantMessageIndex = messages.length + 1;
+    setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+
     try {
       const response = await fetch('/api/copilot/chat', {
         method: 'POST',
@@ -46,18 +50,75 @@ export default function Chat() {
       });
 
       if (!response.ok) throw new Error('Failed to get response');
+      if (!response.body) throw new Error('No response body');
 
-      const data = await response.json();
-      setMessages((prev) => [...prev, data]);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+
+        // Keep the last incomplete line in buffer
+        buffer = lines[lines.length - 1] || '';
+
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = (lines[i] || '').trim();
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.slice(6);
+              const data = JSON.parse(jsonStr);
+              if (data.type === 'chunk' && typeof data.content === 'string') {
+                fullContent += data.content;
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[assistantMessageIndex] = {
+                    role: 'assistant',
+                    content: fullContent,
+                  };
+                  return updated;
+                });
+              } else if (data.type === 'done') {
+                setIsLoading(false);
+                break;
+              } else if (data.type === 'error') {
+                throw new Error(data.error || 'Unknown streaming error');
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+            }
+          }
+        }
+      }
+
+      // Final buffer flush
+      const trimmedBuffer = buffer.trim();
+      if (trimmedBuffer.startsWith('data: ')) {
+        try {
+          const jsonStr = trimmedBuffer.slice(6);
+          const data = JSON.parse(jsonStr);
+          if (data.type === 'error') {
+            throw new Error(data.error || 'Unknown streaming error');
+          }
+        } catch (e) {
+          console.error('Error parsing final SSE data:', e);
+        }
+      }
     } catch (error) {
       console.error('Error sending message:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated[assistantMessageIndex] = {
           role: 'assistant',
-          content: 'Sorry, I encountered an error. Please try again.',
-        },
-      ]);
+          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        };
+        return updated;
+      });
     } finally {
       setIsLoading(false);
     }
