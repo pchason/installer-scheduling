@@ -6,6 +6,7 @@ pool:
 
 steps:
   - checkout: self
+    fetchDepth: '0'  # Ensures full clone
 
   - script: |
       git config --global user.email "paulchason@gmail.com"
