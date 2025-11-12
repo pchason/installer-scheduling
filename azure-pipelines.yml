@@ -1,5 +1,5 @@
 trigger:
-  - main  # or your target branch
+  - main  # or another target branch
 
 pool:
   vmImage: ubuntu-latest
