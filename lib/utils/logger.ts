@@ -1,10 +1,12 @@
 import pino from 'pino';
-import '@axiomhq/pino'
+import '@axiomhq/pino';
 
 const axiomToken = process.env.AXIOM_TOKEN;
+const isProduction = process.env.NODE_ENV === 'production';
 
-// Always use Axiom if token is provided, otherwise fall back to standard logging
-const loggerOptions = axiomToken
+// Use Axiom only in non-production environments with a token
+// In production (Vercel), fall back to standard logging to avoid transport resolution issues
+const loggerOptions = axiomToken && !isProduction
   ? {
       level: process.env.LOG_LEVEL || 'info',
       transport: {
@@ -12,7 +14,7 @@ const loggerOptions = axiomToken
         options: {
           token: axiomToken,
           org: process.env.AXIOM_ORG,
-          dataset: process.env.AXIOM_DATASET || 'inst aller-scheduling',
+          dataset: process.env.AXIOM_DATASET || 'installer-scheduling',
         },
       },
     }
