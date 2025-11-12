@@ -1,5 +1,4 @@
 import pino from 'pino';
-import '@axiomhq/pino';
 
 const axiomToken = process.env.AXIOM_TOKEN;
 const isProduction = process.env.NODE_ENV === 'production';
