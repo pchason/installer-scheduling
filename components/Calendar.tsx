@@ -35,6 +35,7 @@ export default function Calendar() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalDetails, setModalDetails] = useState<ModalDetails | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
   useEffect(() => {
     fetchBookings();
@@ -102,6 +103,9 @@ export default function Calendar() {
   const handleEventClick = async (info: any) => {
     const { installerId, jobId } = info.event.extendedProps;
 
+    setModalLoading(true);
+    setShowModal(true);
+
     try {
       // Fetch installer and job details to show in modal
       const [installerRes] = await Promise.all([
@@ -160,10 +164,12 @@ export default function Calendar() {
         measurementLabel,
       });
 
-      setShowModal(true);
+      setModalLoading(false);
     } catch (error) {
       console.error('Error fetching details:', error);
+      setModalLoading(false);
       alert('Failed to load installer details');
+      setShowModal(false);
     }
   };
 
@@ -200,7 +206,7 @@ export default function Calendar() {
       </div>
 
       {/* Modal Dialog */}
-      {showModal && modalDetails && (
+      {showModal && (
         <div
           style={{
             position: 'fixed',
@@ -214,7 +220,7 @@ export default function Calendar() {
             alignItems: 'center',
             zIndex: 1000,
           }}
-          onClick={() => setShowModal(false)}
+          onClick={() => !modalLoading && setShowModal(false)}
         >
           <div
             style={{
@@ -224,58 +230,90 @@ export default function Calendar() {
               maxWidth: '500px',
               width: '90%',
               boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              minHeight: '300px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ marginTop: 0, marginBottom: '20px', color: '#333' }}>
-              Installer Details
-            </h2>
+            {modalLoading ? (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '50px',
+                      border: '4px solid #f3f3f3',
+                      borderTop: '4px solid #0066cc',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                      margin: '0 auto',
+                    }}
+                  />
+                </div>
+                <p style={{ color: '#666', fontSize: '14px' }}>Loading installer details...</p>
+              </div>
+            ) : modalDetails ? (
+              <>
+                <h2 style={{ marginTop: 0, marginBottom: '20px', color: '#333' }}>
+                  Installer Details
+                </h2>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '8px' }}>
-                Installer Name
-              </label>
-              <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
-                {modalDetails.installerName}
-              </p>
-            </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '8px' }}>
+                    Installer Name
+                  </label>
+                  <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
+                    {modalDetails.installerName}
+                  </p>
+                </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '8px' }}>
-                Trade
-              </label>
-              <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
-                {modalDetails.trade}
-              </p>
-            </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '8px' }}>
+                    Trade
+                  </label>
+                  <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
+                    {modalDetails.trade}
+                  </p>
+                </div>
 
-            <div style={{ marginBottom: '30px' }}>
-              <label style={{ display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '8px' }}>
-                {modalDetails.measurementLabel}
-              </label>
-              <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
-                {modalDetails.measurement}
-              </p>
-            </div>
+                <div style={{ marginBottom: '30px' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '8px' }}>
+                    {modalDetails.measurementLabel}
+                  </label>
+                  <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
+                    {modalDetails.measurement}
+                  </p>
+                </div>
 
-            <button
-              onClick={() => setShowModal(false)}
-              style={{
-                backgroundColor: '#4CAF50',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 'bold',
-              }}
-            >
-              Close
-            </button>
+                <button
+                  onClick={() => setShowModal(false)}
+                  style={{
+                    backgroundColor: '#4CAF50',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Close
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
