@@ -84,7 +84,6 @@ CONVERSATION GUIDELINES:
 
 AVAILABLE TOOLS:
 - retrieve_schema_context: Find relevant schema info using semantic search
-- execute_query: Run database queries (use after understanding schema)
 - getJobWithPOs: Get job details and purchase orders
 - getInstallerDetails: Get installer information
 - findAvailableInstallers: Check installer availability
@@ -93,13 +92,12 @@ AVAILABLE TOOLS:
 
 IMPORTANT:
 - Always try to understand the user's question using retrieve_schema_context first
-- Only execute queries for specific, well-defined requests
+- Use specific tools for direct lookups (getJobWithPOs, getInstallerDetails, etc.)
 - Format results clearly and explain what you found
 - If schema embeddings haven't been generated, guide user to run: npm run generate-embeddings`,
   model: groq('openai/gpt-oss-20b'),
   tools: {
     retrieveSchemaContext: retrieveSchemaContext as any,
-    executeQuery: executeQuery as any,
     getJobWithPOs: getJobWithPOs as any,
     getInstallerDetails: getInstallerDetails as any,
     findAvailableInstallers: findAvailableInstallers as any,
