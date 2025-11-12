@@ -190,24 +190,133 @@ export const checkInstallerLocationCoverage = createTool({
 
 /**
  * Tool: Get installer details
- * Retrieve detailed information about an installer
+ * Retrieve detailed information about an installer by ID or name
  */
 export const getInstallerDetails = createTool({
   id: 'get_installer_details',
-  description: 'Get detailed information about an installer',
+  description: 'Get detailed information about an installer by ID or name. Can search flexibly by first name, last name, or any name (first or last)',
   inputSchema: z.object({
-    installerId: z.number().describe('The installer ID'),
+    installerId: z.number().optional().describe('The installer ID'),
+    firstName: z.string().optional().describe('The installer first name'),
+    lastName: z.string().optional().describe('The installer last name'),
+    name: z.string().optional().describe('Search for a name in either first or last name field (flexible search)'),
   }),
   execute: async ({context}) => {
-    const { installerId } = context;
+    const { installerId, firstName, lastName, name } = context;
     try {
-      const result = await db.select().from(installers).where(eq(installers.installerId, installerId));
+      let result;
 
-      if (result.length === 0) {
-        return { error: `Installer ${installerId} not found` };
+      // Search by ID if provided (highest priority)
+      if (installerId !== undefined) {
+        result = await db.select().from(installers).where(eq(installers.installerId, installerId));
+
+        if (result.length === 0) {
+          return { error: `Installer with ID ${installerId} not found` };
+        }
+
+        return {
+          count: 1,
+          installers: result,
+          searchMethod: 'by ID'
+        };
       }
 
-      return { installer: result[0] };
+      // Search by full name if both firstName and lastName provided
+      if (firstName && lastName) {
+        result = await db
+          .select()
+          .from(installers)
+          .where(
+            and(
+              eq(installers.firstName, firstName),
+              eq(installers.lastName, lastName)
+            )
+          );
+
+        if (result.length === 0) {
+          return { error: `No installer named ${firstName} ${lastName} found` };
+        }
+
+        return {
+          count: result.length,
+          installers: result,
+          searchMethod: 'by full name',
+          note: result.length > 1
+            ? `Found ${result.length} installers with the name ${firstName} ${lastName}. Consider using installer ID for unique identification.`
+            : undefined
+        };
+      }
+
+      // Flexible search by name in either firstName or lastName
+      if (name) {
+        result = await db
+          .select()
+          .from(installers)
+          .where(
+            or(
+              eq(installers.firstName, name),
+              eq(installers.lastName, name)
+            )
+          );
+
+        if (result.length === 0) {
+          return { error: `No installer with name "${name}" found in first or last name` };
+        }
+
+        return {
+          count: result.length,
+          installers: result,
+          searchMethod: 'flexible search (first or last name)',
+          note: result.length > 1
+            ? `Found ${result.length} installers matching "${name}". Results include installers with this as either first or last name. Use installer ID for unique identification.`
+            : undefined
+        };
+      }
+
+      // If only first name is provided
+      if (firstName && !lastName) {
+        result = await db
+          .select()
+          .from(installers)
+          .where(eq(installers.firstName, firstName));
+
+        if (result.length === 0) {
+          return { error: `No installer with first name "${firstName}" found` };
+        }
+
+        return {
+          count: result.length,
+          installers: result,
+          searchMethod: 'by first name only',
+          note: result.length > 1
+            ? `Found ${result.length} installers with first name "${firstName}". Provide last name for more specific results.`
+            : undefined
+        };
+      }
+
+      // If only last name is provided
+      if (lastName && !firstName) {
+        result = await db
+          .select()
+          .from(installers)
+          .where(eq(installers.lastName, lastName));
+
+        if (result.length === 0) {
+          return { error: `No installer with last name "${lastName}" found` };
+        }
+
+        return {
+          count: result.length,
+          installers: result,
+          searchMethod: 'by last name only',
+          note: result.length > 1
+            ? `Found ${result.length} installers with last name "${lastName}". Provide first name for more specific results.`
+            : undefined
+        };
+      }
+
+      // No search criteria provided
+      return { error: 'Please provide either an installer ID or a name to search for (firstName, lastName, or flexible name search)' };
     } catch (error) {
       return { error: `Failed to get installer details: ${error}` };
     }

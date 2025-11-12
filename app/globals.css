@@ -15,6 +15,10 @@ html, body {
   background-color: #f5f5f5;
 }
 
+body {
+  padding: 20px;
+}
+
 /* FullCalendar Styles */
 :global(.fc) {
   font-family: inherit;
