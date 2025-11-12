@@ -9,6 +9,7 @@ interface Message {
 }
 
 export default function Chat() {
+  const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -125,9 +126,56 @@ export default function Chat() {
   };
 
   return (
-    <div className="dashboard-section dashboard-chat">
-      <div className="section-header">AI Assistant</div>
-      <div className="section-content" style={{ display: 'flex', flexDirection: 'column', padding: 0 }}>
+    <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
+      {/* Floating Chat Widget */}
+      <div
+        style={{
+          width: isOpen ? '400px' : '0',
+          height: isOpen ? '600px' : '0',
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          boxShadow: '0 5px 40px rgba(0, 0, 0, 0.16)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          transition: 'width 0.3s ease, height 0.3s ease',
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '16px',
+            backgroundColor: '#0066cc',
+            color: 'white',
+            flexShrink: 0,
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>AI Assistant</h3>
+          <button
+            onClick={() => setIsOpen(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '20px',
+              padding: '0',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            aria-label="Close chat"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Messages Area */}
         <div
           style={{
             flex: 1,
@@ -214,6 +262,7 @@ export default function Chat() {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Input Form */}
         <form
           onSubmit={handleSendMessage}
           style={{
@@ -222,13 +271,14 @@ export default function Chat() {
             padding: '12px 16px',
             borderTop: '1px solid #e0e0e0',
             backgroundColor: '#fafafa',
+            flexShrink: 0,
           }}
         >
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask about jobs, installers..."
+            placeholder="Ask about jobs..."
             disabled={isLoading}
             style={{
               flex: 1,
@@ -258,6 +308,37 @@ export default function Chat() {
           </button>
         </form>
       </div>
+
+      {/* Toggle Button */}
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            backgroundColor: '#0066cc',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0, 102, 204, 0.4)',
+            transition: 'box-shadow 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 102, 204, 0.6)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 102, 204, 0.4)';
+          }}
+          aria-label="Open chat"
+        >
+          💬
+        </button>
+      )}
 
       <style>{`
         @keyframes pulse {
