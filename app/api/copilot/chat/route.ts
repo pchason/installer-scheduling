@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
           // Use the chat agent to generate a response
           const response = await mastra.getAgent('chatAgent').generate(conversationHistory, {
             maxSteps: 10,
+            temperature: 0.3,
           });
 
           // Stream the response character by character for a streaming effect

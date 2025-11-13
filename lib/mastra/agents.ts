@@ -1,6 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { groq } from "@ai-sdk/groq";
-import { getJobWithPOs, findAvailableInstallers, createJobSchedule, assignInstaller, getInstallerDetails, findJobsWithoutInstallers, scheduleJobsWithoutSchedules, assignInstallersToScheduledJobs, checkInstallerLocationCoverage, retrieveSchemaContext, executeQuery } from './tools';
+import { getJobWithPOs, findAvailableInstallers, createJobSchedule, assignInstaller, getInstallerDetails, findJobsWithoutInstallers, scheduleJobsWithoutSchedules, assignInstallersToScheduledJobs, checkInstallerLocationCoverage, searchSchema, queryDb } from './tools';
 
 /**
  * Scheduling Agent
@@ -62,42 +62,30 @@ export const chatAgent = new Agent({
 - Installers, their trades, and coverage areas
 - Purchase order details and their associated jobs
 
-CAPABILITIES:
-- Use retrieve_schema_context to find relevant database schema information
-- Look up specific jobs, installers, and assignments
-- Answer questions about availability and scheduling
-- Provide detailed information about job, installer, and purchase order data
+PROCESS FOR ANSWERING QUESTIONS:
+1. First, use search_schema to understand which database fields are relevant to the user's question
+2. Then, use query_db to generate and execute a SQL query that answers their question
+3. Provide clear, concise answers with specific details
 
-WHEN TO USE RAG RETRIEVAL:
-1. When a user asks questions that require understanding of database schema
-2. When you're unsure which specific tool to use
-3. When the question involves complex relationships between data
-4. Use retrieve_schema_context to understand schema, then execute_query to get data
+AVAILABLE TOOLS (use EXACTLY these names):
+- search_schema: Search the database schema using semantic search based on the user's question
+- query_db: Execute a SQL query against the database to retrieve data
 
 CONVERSATION GUIDELINES:
 1. Be concise and succinct
-2. Ask clarifying questions if ambiguous
-3. Use retrieve_schema_context for schema understanding
-4. Use specific tools (get_job_with_pos, get_installer_details) for direct lookups
-5. Provide clear, concise answers with specific details
-6. Always cite job numbers, installer names, and dates
-
-AVAILABLE TOOLS:
-- retrieve_schema_context: Find relevant schema info using semantic search
-- execute_query: Run database queries (use after understanding schema)
+2. For any user question, first call search_schema to understand relevant schema
+3. Then call query_db with a SQL query based on the schema context
+4. Always cite job numbers, installer names, and dates in your answers
+5. Format results clearly and explain what you found
 
 IMPORTANT:
-- Always try to understand the user's question using retrieve_schema_context first
-- Only execute queries for specific, well-defined requests
-- Format results clearly and explain what you found`,
+- Always use search_schema before query_db
+- Generate SQL queries dynamically based on the user's specific question
+- Only use these two tools: search_schema and query_db
+- Do not attempt to use any other tools`,
   model: groq('openai/gpt-oss-20b'),
   tools: {
-    retrieveSchemaContext: retrieveSchemaContext as any,
-    executeQuery: executeQuery as any,
-    getJobWithPOs: getJobWithPOs as any,
-    getInstallerDetails: getInstallerDetails as any,
-    findAvailableInstallers: findAvailableInstallers as any,
-    findJobsWithoutInstallers: findJobsWithoutInstallers as any,
-    checkInstallerLocationCoverage: checkInstallerLocationCoverage as any,
+    searchSchema: searchSchema as any,
+    queryDb: queryDb as any,
   },
 });

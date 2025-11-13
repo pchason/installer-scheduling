@@ -697,8 +697,8 @@ export const assignInstallersToScheduledJobs = createTool({
  * Tool: Retrieve relevant schema context using semantic search
  * Finds database schema information most relevant to the user's question
  */
-export const retrieveSchemaContext = createTool({
-  id: 'retrieve_schema_context',
+export const searchSchema = createTool({
+  id: 'search_schema',
   description: 'Find relevant database schema information based on a user question using semantic search',
   inputSchema: z.object({
     question: z.string().describe('The user question about the database'),
@@ -772,8 +772,8 @@ export const retrieveSchemaContext = createTool({
  * Tool: Execute a database query
  * Executes a SQL query and returns the results
  */
-export const executeQuery = createTool({
-  id: 'execute_query',
+export const queryDb = createTool({
+  id: 'query_db',
   description: 'Execute a database query and return the results',
   inputSchema: z.object({
     query: z.string().describe('The SQL query to execute'),
