@@ -774,9 +774,9 @@ export const searchSchema = createTool({
  */
 export const queryDb = createTool({
   id: 'query_db',
-  description: 'Execute a database query and return the results',
+  description: 'Execute a PostgreSQL database query and return the results',
   inputSchema: z.object({
-    query: z.string().describe('The SQL query to execute'),
+    query: z.string().describe('The PostgreSQL query to execute'),
     description: z.string().describe('Natural language description of what this query does'),
   }),
   execute: async ({ context }) => {

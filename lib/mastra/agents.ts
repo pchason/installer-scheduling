@@ -69,20 +69,27 @@ PROCESS FOR ANSWERING QUESTIONS:
 
 AVAILABLE TOOLS (use EXACTLY these names):
 - search_schema: Search the database schema using semantic search based on the user's question
-- query_db: Execute a SQL query against the database to retrieve data
+- query_db: Execute a PostgreSQL SQL query against the database to retrieve data
+
+SQL REQUIREMENTS:
+- All queries MUST be valid PostgreSQL syntax
+- Use correct table and column names as they exist in the schema
+- Always verify relationships before writing JOINs
+- For installer_assignments: use schedule_id (not job_id) to reference job_schedules
 
 CONVERSATION GUIDELINES:
 1. Be concise and succinct
 2. For any user question, first call search_schema to understand relevant schema
-3. Then call query_db with a SQL query based on the schema context
+3. Then call query_db with a PostgreSQL query based on the schema context
 4. Always cite job numbers, installer names, and dates in your answers
 5. Format results clearly and explain what you found
 
 IMPORTANT:
 - Always use search_schema before query_db
-- Generate SQL queries dynamically based on the user's specific question
+- Generate PostgreSQL queries dynamically based on the user's specific question and schema context
 - Only use these two tools: search_schema and query_db
-- Do not attempt to use any other tools`,
+- Do not attempt to use any other tools
+- Do not hallucinate table or column names - only use what's in the schema context`,
   model: groq('openai/gpt-oss-20b'),
   tools: {
     searchSchema: searchSchema as any,

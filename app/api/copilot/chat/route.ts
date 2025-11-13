@@ -38,11 +38,16 @@ export async function POST(request: NextRequest) {
           // Use the chat agent to generate a response
           const response = await mastra.getAgent('chatAgent').generate(conversationHistory, {
             maxSteps: 10,
-            temperature: 0.3,
+            modelSettings: { temperature: 0.2 },
           });
 
+          // Check if response text is empty or just whitespace
+          let text = response.text;
+          if (!text || text.trim() === '') {
+            text = "I'm sorry, but I wasn't able to process that request. What else can I help you with?";
+          }
+
           // Stream the response character by character for a streaming effect
-          const text = response.text;
           const chunkSize = 5; // Stream in chunks of 5 characters
           for (let i = 0; i < text.length; i += chunkSize) {
             const chunk = text.substring(i, i + chunkSize);

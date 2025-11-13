@@ -53,8 +53,8 @@ const schemaDescriptions = [
   'purchase_orders.status (enum: pending, scheduled, completed, cancelled) - Status of the PO',
 
   'Table: job_schedules - The scheduled start dates for jobs',
-  'job_schedules.schedule_id (serial, PRIMARY KEY) - Unique identifier for the schedule',
-  'job_schedules.job_id (integer, FOREIGN KEY) - References `jobs.job_id`',
+  'job_schedules.schedule_id (serial, PRIMARY KEY) - Unique identifier for a job that has been scheduled',
+  'job_schedules.job_id (integer, FOREIGN KEY) - References `jobs.job_id`. Links a scheduled job to its details in the jobs table.',
   'job_schedules.scheduled_date (date) - The scheduled date for the job',
   'job_schedules.status (enum: scheduled, completed, cancelled) - Status of the schedule',
 
@@ -66,10 +66,10 @@ const schemaDescriptions = [
   'installer_assignments.assignment_status (enum: assigned, completed, cancelled) - Status of the assignment',
 
   'Relationship: Jobs are located in geographic_locations by city name and location_id',
-  'Relationship: Installers serve geographic_locations through installer_locations',
+  'Relationship: Installers are assigned to geographic_locations of scheduled jobs based on installer_locations',
   'Relationship: purchase_orders define trade work requirements for jobs',
-  'Relationship: job_schedules define when jobs start',
-  'Relationship: installer_assignments link installers to scheduled work',
+  'Relationship: job_schedules define when jobs start and verify that they are scheduled',
+  'Relationship: installer_assignments link installers to scheduled jobs',
 
   'Enum: trade - Installation trade types: trim, stairs, doors',
   'Enum: jobStatus - Job status values: pending, scheduled, in_progress, completed, cancelled',
