@@ -2,7 +2,7 @@ import { createTool } from '@mastra/core';
 import { z } from 'zod';
 import { db } from '@/lib/database/client';
 import { jobs, purchaseOrders, installers, geographicLocations, jobSchedules, installerAssignments, installerLocations, schemaEmbeddings } from '@/lib/database/schema';
-import { eq, and, notInArray } from 'drizzle-orm';
+import { eq, and, or, notInArray } from 'drizzle-orm';
 import { openai } from '@ai-sdk/openai';
 import { embed } from 'ai';
 import { InferenceClient } from '@huggingface/inference';
