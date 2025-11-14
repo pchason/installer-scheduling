@@ -3,8 +3,6 @@ import { z } from 'zod';
 import { db } from '@/lib/database/client';
 import { jobs, purchaseOrders, installers, geographicLocations, jobSchedules, installerAssignments, installerLocations, schemaEmbeddings } from '@/lib/database/schema';
 import { eq, and, or, notInArray } from 'drizzle-orm';
-import { openai } from '@ai-sdk/openai';
-import { embed } from 'ai';
 import { InferenceClient } from '@huggingface/inference';
 
 /**
@@ -764,6 +762,76 @@ export const searchSchema = createTool({
       };
     } catch (error) {
       return { error: `Failed to retrieve schema context: ${error}` };
+    }
+  },
+});
+
+/**
+ * Tool: Use SQLCoder LLM to generate SQL from natural language
+ * Uses Hugging Face's defog/sqlcoder-7b-2 model for text-to-SQL generation
+ */
+export const useSqlCoderLLM = createTool({
+  id: 'use_sqlcoder_llm',
+  description: 'Use defog/sqlcoder-7b-2 (specialized SQL generation model) to generate PostgreSQL queries from natural language descriptions',
+  inputSchema: z.object({
+    question: z.string().describe('Natural language question or request about the database'),
+    schemaContext: z.string().describe('Database schema information relevant to the question'),
+  }),
+  execute: async ({ context }) => {
+    const { question, schemaContext } = context;
+    try {
+      if (!process.env.HF_API_TOKEN) {
+        return {
+          question,
+          success: false,
+          error: 'HF_API_TOKEN environment variable is not set',
+        };
+      }
+
+      const hf = new InferenceClient(process.env.HF_API_TOKEN);
+
+      const prompt = `### Task
+Generate a SQL query to answer the following question: ${question}
+
+### Database Schema
+${schemaContext}
+
+### SQL Query
+`;
+
+      const response = await hf.textGeneration({
+        model: 'defog/sqlcoder-7b-2',
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: 400,
+          temperature: 0.1,
+          top_p: 0.95,
+          stop: [';', '###'],
+        },
+      });
+
+      const generatedQuery = (response.generated_text || '').trim();
+
+      if (!generatedQuery) {
+        return {
+          question,
+          success: false,
+          error: 'SQLCoder generated an empty query',
+        };
+      }
+
+      return {
+        question,
+        success: true,
+        query: generatedQuery,
+        model: 'defog/sqlcoder-7b-2',
+      };
+    } catch (error) {
+      return {
+        question,
+        success: false,
+        error: `Failed to generate SQL with SQLCoder: ${error}`,
+      };
     }
   },
 });

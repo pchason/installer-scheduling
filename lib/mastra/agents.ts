@@ -1,6 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { groq } from "@ai-sdk/groq";
-import { getJobWithPOs, findAvailableInstallers, createJobSchedule, assignInstaller, getInstallerDetails, findJobsWithoutInstallers, scheduleJobsWithoutSchedules, assignInstallersToScheduledJobs, checkInstallerLocationCoverage, searchSchema, queryDb } from './tools';
+import { getJobWithPOs, findAvailableInstallers, createJobSchedule, assignInstaller, getInstallerDetails, findJobsWithoutInstallers, scheduleJobsWithoutSchedules, assignInstallersToScheduledJobs, checkInstallerLocationCoverage, searchSchema, queryDb, useSqlCoderLLM } from './tools';
 
 /**
  * Scheduling Agent
@@ -70,29 +70,43 @@ PROCESS FOR ANSWERING QUESTIONS:
 AVAILABLE TOOLS (use EXACTLY these names):
 - search_schema: Search the database schema using semantic search based on the user's question
 - query_db: Execute a PostgreSQL SQL query against the database to retrieve data
+- use_sqlcoder_llm: FALLBACK - Use defog/sqlcoder-7b-2 specialized SQL generation model when query_db fails
 
 SQL REQUIREMENTS:
 - All queries MUST be valid PostgreSQL syntax
 - Use correct table and column names as they exist in the schema
 - Always verify relationships before writing JOINs
 - For installer_assignments: use schedule_id (not job_id) to reference job_schedules
+- Installers names are stored in first_name and last_name columns
 
 CONVERSATION GUIDELINES:
 1. Be concise and succinct
 2. For any user question, first call search_schema to understand relevant schema
 3. Then call query_db with a PostgreSQL query based on the schema context
-4. Always cite job numbers, installer names, and dates in your answers
-5. Format results clearly and explain what you found
+4. If query_db returns success: false or an error, IMMEDIATELY call use_sqlcoder_llm with the same question and schema context
+5. If use_sqlcoder_llm returns a query, execute it with query_db
+6. If both tools fail, explain to the user that the query could not be processed
+7. Always cite job numbers, installer names, and dates in your answers
+8. Format results clearly and explain what you found
+
+FALLBACK WORKFLOW:
+When query_db fails with an error:
+1. Do NOT give up
+2. Immediately call use_sqlcoder_llm with the user's question and the schema context from search_schema
+3. use_sqlcoder_llm will generate a corrected SQL query
+4. Then execute the corrected query with query_db
 
 IMPORTANT:
-- Always use search_schema before query_db
+- Always use search_schema before attempting query_db
 - Generate PostgreSQL queries dynamically based on the user's specific question and schema context
-- Only use these two tools: search_schema and query_db
+- ALWAYS use use_sqlcoder_llm when query_db returns success: false or an error
 - Do not attempt to use any other tools
-- Do not hallucinate table or column names - only use what's in the schema context`,
+- Do not hallucinate table or column names - only use what's in the schema context
+- The fallback is NOT optional - it is REQUIRED when query_db fails`,
   model: groq('openai/gpt-oss-20b'),
   tools: {
     searchSchema: searchSchema as any,
     queryDb: queryDb as any,
+    useSqlCoderLLM: useSqlCoderLLM as any,
   },
 });

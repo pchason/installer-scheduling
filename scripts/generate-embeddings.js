@@ -11,7 +11,7 @@ const { InferenceClient } = require('@huggingface/inference');
 
 // Schema descriptions
 const schemaDescriptions = [
-  'Table: installers - Stores information about installation workers including their trade specialty',
+  'Table: installers - Stores information about installation workers including their trade specialty. Fields: installer_id, first_name, last_name, trade, phone, email, is_active',
   'installers.installer_id (serial, PRIMARY KEY) - Unique identifier for the installer',
   'installers.first_name (varchar) - Installer first name',
   'installers.last_name (varchar) - Installer last name',
@@ -20,18 +20,18 @@ const schemaDescriptions = [
   'installers.email (varchar) - Contact email address',
   'installers.is_active (boolean) - Whether the installer is currently active',
 
-  'Table: geographic_locations - Represents geographic service areas where installers can perform their work and jobs exist',
+  'Table: geographic_locations - Represents geographic service areas where installers can perform their work and jobs exist. Fields: location_id, location_name, zip_code, city, state',
   'geographic_locations.location_id (serial, PRIMARY KEY) - Unique identifier for the location',
   'geographic_locations.location_name (varchar) - Name of the geographic location',
   'geographic_locations.zip_code (varchar) - Zip code for the location',
   'geographic_locations.city (varchar) - City name',
   'geographic_locations.state (varchar) - State abbreviation (2 characters)',
 
-  'Table: installer_locations - Junction table linking installers to geographic locations they serve',
+  'Table: installer_locations - Junction table linking installers to geographic locations they serve. Fields: installer_id, location_id',
   'installer_locations.installer_id (integer, FOREIGN KEY) - References `installers.installer_id`',
   'installer_locations.location_id (integer, FOREIGN KEY) - References `geographic_locations.location_id`',
 
-  'Table: jobs - Represents scheduled jobs that need to be completed by installers who will be or are already assigned',
+  'Table: jobs - Represents scheduled jobs that need to be completed by installers who will be or are already assigned. Fields: job_id, job_number, street_address, city, state, zip_code, location_id, status, start_date, end_date',
   'jobs.job_id (serial, PRIMARY KEY) - Unique identifier for the job',
   'jobs.job_number (varchar) - Human-readable job number',
   'jobs.street_address (varchar) - Street address of the job',
@@ -43,7 +43,7 @@ const schemaDescriptions = [
   'jobs.start_date (date) - Planned start date for the job',
   'jobs.end_date (date) - Planned end date for the job',
 
-  'Table: purchase_orders - Detailed requirements for trim, stair, and door installation work on a job',
+  'Table: purchase_orders - Detailed requirements for trim, stair, and door installation work on a job. Fields: po_id, job_id, po_number, trim_linear_feet, stair_risers, door_count, status',
   'purchase_orders.po_id (serial, PRIMARY KEY) - Unique identifier for the purchase order',
   'purchase_orders.job_id (integer, FOREIGN KEY) - References `jobs.job_id`',
   'purchase_orders.po_number (varchar) - Human-readable PO number',
@@ -52,13 +52,13 @@ const schemaDescriptions = [
   'purchase_orders.door_count (integer) - Number of doors to install',
   'purchase_orders.status (enum: pending, scheduled, completed, cancelled) - Status of the PO',
 
-  'Table: job_schedules - The scheduled start dates for jobs',
+  'Table: job_schedules - The scheduled start dates for jobs. Fields: schedule_id, job_id, scheduled_date, status',
   'job_schedules.schedule_id (serial, PRIMARY KEY) - Unique identifier for a job that has been scheduled',
   'job_schedules.job_id (integer, FOREIGN KEY) - References `jobs.job_id`. Links a scheduled job to its details in the jobs table.',
   'job_schedules.scheduled_date (date) - The scheduled date for the job',
   'job_schedules.status (enum: scheduled, completed, cancelled) - Status of the schedule',
 
-  'Table: installer_assignments - Assignments of installers to specific jobs based on an installer\'s trade specialty',
+  'Table: installer_assignments - Assignments of installers to specific jobs based on an installer\'s trade specialty. Fields: assignment_id, schedule_id, installer_id, po_id, assignment_status',
   'installer_assignments.assignment_id (serial, PRIMARY KEY) - Unique identifier for the assignment',
   'installer_assignments.schedule_id (integer, FOREIGN KEY) - References `job_schedules.schedule_id`',
   'installer_assignments.installer_id (integer, FOREIGN KEY) - References `installers.installer_id`',
