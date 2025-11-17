@@ -768,7 +768,7 @@ export const searchSchema = createTool({
 
 /**
  * Tool: Use SQLCoder LLM to generate SQL from natural language
- * Uses Hugging Face's defog/sqlcoder-7b-2 model for text-to-SQL generation
+ * Uses Cloudflare's defog/sqlcoder-7b-2 model via REST API for text-to-SQL generation
  */
 export const useSqlCoderLLM = createTool({
   id: 'use_sqlcoder_llm',
@@ -780,37 +780,66 @@ export const useSqlCoderLLM = createTool({
   execute: async ({ context }) => {
     const { question, schemaContext } = context;
     try {
-      if (!process.env.HF_API_TOKEN) {
+      // Validate required environment variables
+      if (!process.env.CF_ACCOUNT_ID) {
         return {
           question,
           success: false,
-          error: 'HF_API_TOKEN environment variable is not set',
+          error: 'CF_ACCOUNT_ID environment variable is not set',
         };
       }
 
-      const hf = new InferenceClient(process.env.HF_API_TOKEN);
+      if (!process.env.CF_API_TOKEN) {
+        return {
+          question,
+          success: false,
+          error: 'CF_API_TOKEN environment variable is not set',
+        };
+      }
 
-      const prompt = `### Task
-Generate a SQL query to answer the following question: ${question}
+      // Call Cloudflare AI REST API
+      const systemPrompt = `You are an expert SQL developer. Generate a valid PostgreSQL query to answer the following question. Default to the current year when a year is not included in the user's input. Return ONLY the SQL query, no explanations or markdown.`;
 
-### Database Schema
+      const userMessage = `Question: ${question}
+
+Database Schema:
 ${schemaContext}
 
-### SQL Query
-`;
+Generate a PostgreSQL query to answer this question:`;
 
-      const response = await hf.textGeneration({
-        model: 'defog/sqlcoder-7b-2',
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 400,
-          temperature: 0.1,
-          top_p: 0.95,
-          stop: [';', '###'],
-        },
-      });
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/defog/sqlcoder-7b-2`,
+        {
+          headers: { Authorization: `Bearer ${process.env.CF_API_TOKEN}` },
+          method: 'POST',
+          body: JSON.stringify({
+            messages: [
+              {
+                role: 'system',
+                content: systemPrompt,
+              },
+              {
+                role: 'user',
+                content: userMessage,
+              },
+            ],
+          }),
+        }
+      );
 
-      const generatedQuery = (response.generated_text || '').trim();
+      if (!response.ok) {
+        const errorData = await response.json();
+        return {
+          question,
+          success: false,
+          error: `Cloudflare API error: ${response.status} - ${JSON.stringify(errorData)}`,
+        };
+      }
+
+      const result = await response.json();
+
+      // Extract generated SQL from response
+      const generatedQuery = result.result?.response?.trim() || '';
 
       if (!generatedQuery) {
         return {
