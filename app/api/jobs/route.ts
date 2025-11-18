@@ -49,15 +49,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const createdJob = result[0];
+    const createdJob = result[0]!;
 
     // Create 3 purchase orders for the job, each with one trade field populated with random value
     try {
-      const poData = [
+      const poData: Array<{
+        jobId: number;
+        poNumber: string;
+        trimLinearFeet: string | null;
+        stairRisers: number | null;
+        doorCount: number | null;
+      }> = [
         {
           jobId: createdJob.jobId,
           poNumber: `${createdJob.jobNumber}-PO-001`,
-          trimLinearFeet: Math.random() * 1000,
+          trimLinearFeet: (Math.random() * 1000).toFixed(2),
           stairRisers: null,
           doorCount: null,
         },
