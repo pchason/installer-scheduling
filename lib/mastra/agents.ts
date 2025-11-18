@@ -1,5 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { groq } from "@ai-sdk/groq";
+import { deepinfra } from "@ai-sdk/deepinfra";
 import { getJobWithPOs, findAvailableInstallers, createJobSchedule, assignInstaller, getInstallerDetails, findJobsWithoutInstallers, scheduleJobsWithoutSchedules, assignInstallersToScheduledJobs, checkInstallerLocationCoverage, searchSchema, queryDb, useSqlCoderLLM } from './tools';
 
 /**
@@ -44,8 +45,10 @@ PROCESS:
 8. Provide summary of scheduled installers and dates
 
 Be thorough but efficient. Make decisions autonomously without asking for confirmation.`,
-  model: groq('openai/gpt-oss-20b'),
-  
+  model: [
+    { model: groq('openai/gpt-oss-20b') },
+    { model: deepinfra('openai/gpt-oss-20b') },
+  ],
   tools: {
     getJobWithPOs: getJobWithPOs as any,
     findAvailableInstallers: findAvailableInstallers as any,
@@ -116,7 +119,10 @@ IMPORTANT:
 - Do not attempt to use any other tools
 - Do not hallucinate table or column names - only use what's in the schema context
 - The fallback is NOT optional - it is REQUIRED when query_db fails`,
-  model: groq('openai/gpt-oss-20b'),
+  model: [
+    { model: groq('openai/gpt-oss-20b') },
+    { model: deepinfra('openai/gpt-oss-20b') },
+  ],
   tools: {
     searchSchema: searchSchema as any,
     queryDb: queryDb as any,
