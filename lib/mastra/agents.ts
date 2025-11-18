@@ -22,6 +22,17 @@ SCHEDULING RULES:
 6. Always verify installer details before assignment
 7. Provide clear reasoning for scheduling decisions
 
+TOOL ID's (use EXACTLY these ID's when calling a tool):
+- get_job_with_pos: Retrieve job details along with associated purchase orders
+- find_available_installers: Find installers available for specific trade and date
+- create_job_schedule: Create a schedule entry for a job on a specific date
+- assign_installer: Assign an installer to a scheduled job
+- get_installer_details: Retrieve detailed information about an installer
+- find_jobs_without_installers: Find jobs that do not yet have installers assigned
+- schedule_jobs_without_schedules: Schedule all unscheduled jobs starting from the next available date
+- assign_installers_to_scheduled_jobs: Assign installers to all scheduled jobs based on installer's trade and availability
+- check_installer_location_coverage: Check if an installer share the same location as the job location
+
 PROCESS:
 1. Create a schedule using schedule_jobs_without_schedules to schedule all unscheduled jobs
 2. Use get_job_with_pos to understand job trade type requirements
@@ -34,6 +45,7 @@ PROCESS:
 
 Be thorough but efficient. Make decisions autonomously without asking for confirmation.`,
   model: groq('openai/gpt-oss-20b'),
+  
   tools: {
     getJobWithPOs: getJobWithPOs as any,
     findAvailableInstallers: findAvailableInstallers as any,
