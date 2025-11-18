@@ -8,6 +8,8 @@ interface JobFormData {
   city: string;
   state: string;
   zipCode: string;
+  dateStart: string;
+  dateEnd: string;
   locationId?: string;
   status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 }
@@ -17,12 +19,16 @@ interface JobFormProps {
 }
 
 export default function JobForm({ onSuccess }: JobFormProps) {
+  const cities = ['Jacksonville', 'Miami', 'Orlando', 'Panama City', 'Tampa'];
+
   const [formData, setFormData] = useState<JobFormData>({
     jobNumber: '',
     streetAddress: '',
     city: '',
-    state: '',
+    state: 'FL',
     zipCode: '',
+    dateStart: '',
+    dateEnd: '',
     status: 'pending',
   });
 
@@ -64,20 +70,34 @@ export default function JobForm({ onSuccess }: JobFormProps) {
       setError('Zip code is required');
       return;
     }
+    if (!formData.dateStart.trim()) {
+      setError('Date start is required');
+      return;
+    }
+    if (!formData.dateEnd.trim()) {
+      setError('Date end is required');
+      return;
+    }
 
     try {
       setLoading(true);
+
+      // Calculate locationId based on city index (starting at 1)
+      const cityIndex = cities.indexOf(formData.city);
+
       const payload: any = {
         jobNumber: formData.jobNumber.trim(),
         streetAddress: formData.streetAddress.trim(),
         city: formData.city.trim(),
         state: formData.state.trim(),
         zipCode: formData.zipCode.trim(),
+        dateStart: formData.dateStart,
+        dateEnd: formData.dateEnd,
         status: formData.status,
       };
 
-      if (formData.locationId) {
-        payload.locationId = parseInt(formData.locationId, 10);
+      if (cityIndex !== -1) {
+        payload.locationId = cityIndex + 1;
       }
 
       const response = await fetch('/api/jobs', {
@@ -93,13 +113,23 @@ export default function JobForm({ onSuccess }: JobFormProps) {
         throw new Error(errorData.error || 'Failed to create job');
       }
 
+      // Call the schedule-jobs-assign-installers endpoint after successful job creation
+      await fetch('/api/schedule-jobs-assign-installers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
       setSuccess(true);
       setFormData({
         jobNumber: '',
         streetAddress: '',
         city: '',
-        state: '',
+        state: 'FL',
         zipCode: '',
+        dateStart: '',
+        dateEnd: '',
         status: 'pending',
       });
 
@@ -237,13 +267,11 @@ export default function JobForm({ onSuccess }: JobFormProps) {
               >
                 City *
               </label>
-              <input
-                type="text"
+              <select
                 id="city"
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
-                placeholder="e.g., Denver"
                 style={{
                   width: '100%',
                   padding: '8px 10px',
@@ -251,12 +279,21 @@ export default function JobForm({ onSuccess }: JobFormProps) {
                   border: '1px solid #ddd',
                   borderRadius: '4px',
                   fontFamily: 'inherit',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
                   boxSizing: 'border-box',
                   transition: 'border-color 0.2s',
                 }}
                 onFocus={(e) => (e.target.style.borderColor = '#0066cc')}
                 onBlur={(e) => (e.target.style.borderColor = '#ddd')}
-              />
+              >
+                <option value="">Select a city</option>
+                <option value="Jacksonville">Jacksonville</option>
+                <option value="Miami">Miami</option>
+                <option value="Orlando">Orlando</option>
+                <option value="Panama City">Panama City</option>
+                <option value="Tampa">Tampa</option>
+              </select>
             </div>
             <div style={{ flex: 0.5 }}>
               <label
@@ -276,9 +313,7 @@ export default function JobForm({ onSuccess }: JobFormProps) {
                 id="state"
                 name="state"
                 value={formData.state}
-                onChange={handleChange}
-                placeholder="CO"
-                maxLength={2}
+                disabled
                 style={{
                   width: '100%',
                   padding: '8px 10px',
@@ -287,10 +322,9 @@ export default function JobForm({ onSuccess }: JobFormProps) {
                   borderRadius: '4px',
                   fontFamily: 'inherit',
                   boxSizing: 'border-box',
-                  transition: 'border-color 0.2s',
+                  backgroundColor: '#f5f5f5',
+                  cursor: 'not-allowed',
                 }}
-                onFocus={(e) => (e.target.style.borderColor = '#0066cc')}
-                onBlur={(e) => (e.target.style.borderColor = '#ddd')}
               />
             </div>
           </div>
@@ -330,6 +364,75 @@ export default function JobForm({ onSuccess }: JobFormProps) {
             />
           </div>
 
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+            <div style={{ flex: 1 }}>
+              <label
+                htmlFor="dateStart"
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  marginBottom: '6px',
+                  color: '#333',
+                }}
+              >
+                Start Date *
+              </label>
+              <input
+                type="date"
+                id="dateStart"
+                name="dateStart"
+                value={formData.dateStart}
+                onChange={handleChange}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  fontSize: '13px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#0066cc')}
+                onBlur={(e) => (e.target.style.borderColor = '#ddd')}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label
+                htmlFor="dateEnd"
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  marginBottom: '6px',
+                  color: '#333',
+                }}
+              >
+                End Date *
+              </label>
+              <input
+                type="date"
+                id="dateEnd"
+                name="dateEnd"
+                value={formData.dateEnd}
+                onChange={handleChange}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  fontSize: '13px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#0066cc')}
+                onBlur={(e) => (e.target.style.borderColor = '#ddd')}
+              />
+            </div>
+          </div>
+
           <div style={{ marginBottom: '16px' }}>
             <label
               htmlFor="status"
@@ -343,11 +446,12 @@ export default function JobForm({ onSuccess }: JobFormProps) {
             >
               Status
             </label>
-            <select
+            <input
+              type="text"
               id="status"
               name="status"
-              value={formData.status}
-              onChange={handleChange}
+              value="Pending"
+              disabled
               style={{
                 width: '100%',
                 padding: '8px 10px',
@@ -355,19 +459,11 @@ export default function JobForm({ onSuccess }: JobFormProps) {
                 border: '1px solid #ddd',
                 borderRadius: '4px',
                 fontFamily: 'inherit',
-                backgroundColor: 'white',
-                cursor: 'pointer',
-                transition: 'border-color 0.2s',
+                boxSizing: 'border-box',
+                backgroundColor: '#f5f5f5',
+                cursor: 'not-allowed',
               }}
-              onFocus={(e) => (e.target.style.borderColor = '#0066cc')}
-              onBlur={(e) => (e.target.style.borderColor = '#ddd')}
-            >
-              <option value="pending">Pending</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+            />
           </div>
 
           <button

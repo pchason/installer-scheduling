@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database/client';
 import { handleApiError } from '@/app/api/error-handler';
-import { jobs } from '@/lib/database/schema';
+import { jobs, purchaseOrders } from '@/lib/database/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/utils/logger';
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { jobNumber, streetAddress, city, state, zipCode, locationId, status } = body;
+    const { jobNumber, streetAddress, city, state, zipCode, locationId, status, dateStart, dateEnd } = body;
 
     const result = await db
       .insert(jobs)
@@ -37,6 +37,8 @@ export async function POST(request: NextRequest) {
         zipCode,
         locationId,
         status: status ?? 'pending',
+        startDate: dateStart || null,
+        endDate: dateEnd || null,
       })
       .returning();
 
@@ -48,6 +50,42 @@ export async function POST(request: NextRequest) {
     }
 
     const createdJob = result[0];
+
+    // Create 3 purchase orders for the job, each with one trade field populated with random value
+    try {
+      const poData = [
+        {
+          jobId: createdJob.jobId,
+          poNumber: `${createdJob.jobNumber}-PO-001`,
+          trimLinearFeet: Math.random() * 1000,
+          stairRisers: null,
+          doorCount: null,
+        },
+        {
+          jobId: createdJob.jobId,
+          poNumber: `${createdJob.jobNumber}-PO-002`,
+          trimLinearFeet: null,
+          stairRisers: Math.floor(Math.random() * 150) + 1,
+          doorCount: null,
+        },
+        {
+          jobId: createdJob.jobId,
+          poNumber: `${createdJob.jobNumber}-PO-003`,
+          trimLinearFeet: null,
+          stairRisers: null,
+          doorCount: Math.floor(Math.random() * 15) + 1,
+        },
+      ];
+
+      await db.insert(purchaseOrders).values(poData);
+      logger.info({ jobId: createdJob.jobId }, 'Created 3 purchase orders for job');
+    } catch (poError) {
+      logger.warn(
+        { jobId: createdJob.jobId, error: poError },
+        'Failed to create purchase orders for job'
+      );
+      // Continue - we still want to return the created job even if PO creation fails
+    }
 
     // Trigger autonomous scheduling workflow (non-blocking, fire-and-forget)
     try {
