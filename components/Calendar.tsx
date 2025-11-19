@@ -25,6 +25,9 @@ interface CalendarEvent {
 
 interface ModalDetails {
   installerName: string;
+  installerLocation: string;
+  jobAddress: string;
+  poNumber: string;
   trade: string;
   measurement: string;
   measurementLabel: string;
@@ -61,6 +64,7 @@ export default function Calendar() {
           const keys = Object.keys(booking);
           const scheduleKey = keys.find((key) => booking[key].scheduledDate !== undefined);
           const assignmentKey = keys.find((key) => booking[key].installerId !== undefined && booking[key].scheduleId !== undefined);
+          const installerKey = keys.find((key) => booking[key].firstName !== undefined && booking[key].lastName !== undefined);
 
           if (!scheduleKey || !assignmentKey) {
             return null;
@@ -68,10 +72,17 @@ export default function Calendar() {
 
           const schedule = booking[scheduleKey];
           const assignment = booking[assignmentKey];
+          const installer = installerKey ? booking[installerKey] : null;
+
+          // Generate installer initials
+          let initials = '';
+          if (installer && installer.firstName && installer.lastName) {
+            initials = `${installer.firstName.charAt(0)}${installer.lastName.charAt(0)}`.toUpperCase();
+          }
 
           return {
             id: `booking-${assignment.assignmentId}`,
-            title: `Installer ${assignment.installerId} - Job ${schedule.jobId}`,
+            title: `Installer ${initials} ${assignment.installerId} - Job ID ${schedule.jobId}`,
             start: `${schedule.scheduledDate}T08:00:00`,
             end: `${schedule.scheduledDate}T17:00:00`,
             backgroundColor: getTradeColor(schedule.jobId),
@@ -108,14 +119,15 @@ export default function Calendar() {
 
     try {
       // Fetch installer and job details to show in modal
-      const [installerRes] = await Promise.all([
+      const [installerRes, jobRes] = await Promise.all([
         fetch(`/api/installers/${installerId}`),
         fetch(`/api/jobs/${jobId}`)
       ]);
 
-      if (!installerRes.ok) throw new Error('Failed to fetch details');
+      if (!installerRes.ok || !jobRes.ok) throw new Error('Failed to fetch details');
 
       const installer = await installerRes.json();
+      const job = await jobRes.json();
 
       // Get the purchase order with measurements for this job
       const poRes = await fetch(`/api/purchase-orders?jobId=${jobId}`);
@@ -127,9 +139,19 @@ export default function Calendar() {
       const installerName = `${installer.firstName} ${installer.lastName}`;
       const trade = installer.trade;
 
-      // Find the measurement based on trade type
+      // Get installer location name (from the geographic locations)
+      let installerLocation = 'N/A';
+      if (installer.locations && installer.locations.length > 0) {
+        installerLocation = installer.locations[0].locationName || 'N/A';
+      }
+
+      // Get job address
+      const jobAddress = job ? `${job.streetAddress}, ${job.city}, ${job.state} ${job.zipCode}` : 'N/A';
+
+      // Find the PO number and measurement based on trade type
       let measurement = 'N/A';
       let measurementLabel = 'Measurement';
+      let poNumber = 'N/A';
 
       if (Array.isArray(poData) && poData.length > 0) {
         // Find the purchase order that has data for this trade
@@ -139,18 +161,21 @@ export default function Calendar() {
             if (!isNaN(trimValue) && trimValue > 0) {
               measurement = `${trimValue} linear feet`;
               measurementLabel = 'Linear Feet';
+              poNumber = po.poNumber;
               break;
             }
           } else if (trade === 'stairs' && po.stairRisers) {
             if (po.stairRisers > 0) {
               measurement = `${po.stairRisers} risers`;
               measurementLabel = 'Stair Risers';
+              poNumber = po.poNumber;
               break;
             }
           } else if (trade === 'doors' && po.doorCount) {
             if (po.doorCount > 0) {
               measurement = `${po.doorCount} doors`;
               measurementLabel = 'Door Count';
+              poNumber = po.poNumber;
               break;
             }
           }
@@ -159,6 +184,9 @@ export default function Calendar() {
 
       setModalDetails({
         installerName,
+        installerLocation,
+        jobAddress,
+        poNumber,
         trade: trade.charAt(0).toUpperCase() + trade.slice(1),
         measurement,
         measurementLabel,
@@ -198,8 +226,23 @@ export default function Calendar() {
             selectable={true}
             dayMaxEvents={3}
             eventDisplay="block"
+            eventTimeFormat={{
+              hour: 'numeric',
+              minute: '2-digit',
+              meridiem: false,
+              omitZeroMinute: true,
+            }}
+            slotLabelFormat={{
+              meridiem: false,
+              omitZeroMinute: true,
+            }}
             eventDidMount={(info) => {
-              info.el.style.cursor = 'pointer';
+              (info.el as HTMLElement).style.cursor = 'pointer';
+              // Hide the time element in the event
+              const timeEl = info.el.querySelector('.fc-event-time') as HTMLElement;
+              if (timeEl) {
+                timeEl.style.display = 'none';
+              }
             }}
           />
         )}
@@ -266,6 +309,33 @@ export default function Calendar() {
                   </label>
                   <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
                     {modalDetails.installerName}
+                  </p>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '8px' }}>
+                    Installer Location
+                  </label>
+                  <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
+                    {modalDetails.installerLocation}
+                  </p>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '8px' }}>
+                    Job Address
+                  </label>
+                  <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
+                    {modalDetails.jobAddress}
+                  </p>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '8px' }}>
+                    PO Number
+                  </label>
+                  <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
+                    {modalDetails.poNumber}
                   </p>
                 </div>
 

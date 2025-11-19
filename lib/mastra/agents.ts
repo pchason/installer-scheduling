@@ -82,7 +82,7 @@ PROCESS FOR ANSWERING QUESTIONS:
 2. Then, use query_db to generate and execute a SQL query that answers their question
 3. Provide clear, concise answers with specific details
 
-AVAILABLE TOOLS (use EXACTLY these names):
+AVAILABLE TOOLS (use EXACTLY these ID's when calling a tool):
 - search_schema: Search the database schema using semantic search based on the user's question
 - query_db: Execute a PostgreSQL SQL query against the database to retrieve data
 - use_sqlcoder_llm: FALLBACK - Use defog/sqlcoder-7b-2 specialized SQL generation model when query_db fails

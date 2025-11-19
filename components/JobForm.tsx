@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { generateFakeJobData } from '@/lib/common/generate-fake-job';
 
 interface JobFormData {
   jobNumber: string;
@@ -35,6 +36,26 @@ export default function JobForm({ onSuccess }: JobFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [successDetails, setSuccessDetails] = useState<{
+    jobNumber: string;
+    jobId: number;
+    poNumbers: string[];
+  } | null>(null);
+
+  // Autopopulate form with fake data on mount
+  useEffect(() => {
+    const fakeData = generateFakeJobData();
+    setFormData({
+      jobNumber: fakeData.jobNumber,
+      streetAddress: fakeData.streetAddress,
+      city: fakeData.city,
+      state: 'FL',
+      zipCode: fakeData.zipCode,
+      dateStart: fakeData.startDate,
+      dateEnd: fakeData.endDate,
+      status: 'pending',
+    });
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -113,6 +134,8 @@ export default function JobForm({ onSuccess }: JobFormProps) {
         throw new Error(errorData.error || 'Failed to create job');
       }
 
+      const responseData = await response.json();
+
       // Call the schedule-jobs-assign-installers endpoint after successful job creation
       await fetch('/api/schedule-jobs-assign-installers', {
         method: 'POST',
@@ -122,6 +145,11 @@ export default function JobForm({ onSuccess }: JobFormProps) {
       });
 
       setSuccess(true);
+      setSuccessDetails({
+        jobNumber: responseData.jobNumber,
+        jobId: responseData.jobId,
+        poNumbers: responseData.poNumbers || [],
+      });
       setFormData({
         jobNumber: '',
         streetAddress: '',
@@ -133,8 +161,11 @@ export default function JobForm({ onSuccess }: JobFormProps) {
         status: 'pending',
       });
 
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(false), 3000);
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setSuccess(false);
+        setSuccessDetails(null);
+      }, 5000);
 
       if (onSuccess) {
         onSuccess();
@@ -170,7 +201,7 @@ export default function JobForm({ onSuccess }: JobFormProps) {
           {success && (
             <div
               style={{
-                padding: '12px',
+                padding: '16px',
                 marginBottom: '16px',
                 backgroundColor: '#E5F5E5',
                 color: '#060',
@@ -179,7 +210,22 @@ export default function JobForm({ onSuccess }: JobFormProps) {
                 border: '1px solid #B3FFB3',
               }}
             >
-              Job created successfully!
+              <div style={{ fontWeight: '600', marginBottom: '8px' }}>Job created successfully!</div>
+              {successDetails && (
+                <div style={{ lineHeight: '1.6' }}>
+                  <div>
+                    <strong>Job Number:</strong> {successDetails.jobNumber}
+                  </div>
+                  <div>
+                    <strong>Job ID:</strong> {successDetails.jobId}
+                  </div>
+                  {successDetails.poNumbers.length > 0 && (
+                    <div>
+                      <strong>PO Numbers:</strong> {successDetails.poNumbers.join(', ')}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database/client';
 import { handleApiError } from '@/app/api/error-handler';
-import { installers } from '@/lib/database/schema';
+import { installers, installerLocations, geographicLocations } from '@/lib/database/schema';
 import { eq } from 'drizzle-orm';
 
 export async function GET(
@@ -19,19 +19,38 @@ export async function GET(
       );
     }
 
-    const result = await db
+    // Get installer details
+    const installerData = await db
       .select()
       .from(installers)
       .where(eq(installers.installerId, installerId));
 
-    if (result.length === 0) {
+    if (installerData.length === 0) {
       return NextResponse.json(
         { error: 'Installer not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(result[0]);
+    // Get installer's locations
+    const locationsData = await db
+      .select({
+        locationId: geographicLocations.locationId,
+        locationName: geographicLocations.locationName,
+        city: geographicLocations.city,
+        state: geographicLocations.state,
+      })
+      .from(installerLocations)
+      .innerJoin(geographicLocations, eq(installerLocations.locationId, geographicLocations.locationId))
+      .where(eq(installerLocations.installerId, installerId));
+
+    // Combine installer data with locations
+    const result = {
+      ...installerData[0],
+      locations: locationsData,
+    };
+
+    return NextResponse.json(result);
   } catch (error) {
     return handleApiError(error);
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database/client';
 import { handleApiError } from '@/app/api/error-handler';
-import { installerAssignments, jobSchedules } from '@/lib/database/schema';
+import { installerAssignments, jobSchedules, installers } from '@/lib/database/schema';
 import { eq, and } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
     let baseQuery = db
       .select()
       .from(installerAssignments)
-      .innerJoin(jobSchedules, eq(jobSchedules.scheduleId, installerAssignments.scheduleId));
+      .innerJoin(jobSchedules, eq(jobSchedules.scheduleId, installerAssignments.scheduleId))
+      .innerJoin(installers, eq(installerAssignments.installerId, installers.installerId));
 
     const result = conditions.length > 0
       ? await baseQuery.where(and(...conditions))
