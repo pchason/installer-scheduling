@@ -26,6 +26,7 @@ interface CalendarEvent {
 interface ModalDetails {
   installerName: string;
   installerLocation: string;
+  jobNumber: string;
   jobAddress: string;
   poNumber: string;
   trade: string;
@@ -145,7 +146,8 @@ export default function Calendar() {
         installerLocation = installer.locations[0].locationName || 'N/A';
       }
 
-      // Get job address
+      // Get job number and address
+      const jobNumber = job ? job.jobNumber : 'N/A';
       const jobAddress = job ? `${job.streetAddress}, ${job.city}, ${job.state} ${job.zipCode}` : 'N/A';
 
       // Find the PO number and measurement based on trade type
@@ -185,6 +187,7 @@ export default function Calendar() {
       setModalDetails({
         installerName,
         installerLocation,
+        jobNumber,
         jobAddress,
         poNumber,
         trade: trade.charAt(0).toUpperCase() + trade.slice(1),
@@ -318,6 +321,15 @@ export default function Calendar() {
                   </label>
                   <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
                     {modalDetails.installerLocation}
+                  </p>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '8px' }}>
+                    Job Number
+                  </label>
+                  <p style={{ margin: 0, fontSize: '16px', color: '#333' }}>
+                    {modalDetails.jobNumber}
                   </p>
                 </div>
 

@@ -50,14 +50,14 @@ Be thorough but efficient. Make decisions autonomously without asking for confir
     { model: deepinfra('openai/gpt-oss-20b') },
   ],
   tools: {
-    getJobWithPOs: getJobWithPOs as any,
-    findAvailableInstallers: findAvailableInstallers as any,
-    createJobSchedule: createJobSchedule as any,
-    assignInstaller: assignInstaller as any,
-    getInstallerDetails: getInstallerDetails as any,
-    findJobsWithoutInstallers: findJobsWithoutInstallers as any,
-    scheduleJobsWithoutSchedules: scheduleJobsWithoutSchedules as any,
-    assignInstallersToScheduledJobs: assignInstallersToScheduledJobs as any,
+    getJobWithPOs,
+    findAvailableInstallers,
+    createJobSchedule,
+    assignInstaller,
+    getInstallerDetails,
+    findJobsWithoutInstallers,
+    scheduleJobsWithoutSchedules,
+    assignInstallersToScheduledJobs,
   },
 });
 
@@ -124,8 +124,8 @@ IMPORTANT:
     { model: deepinfra('openai/gpt-oss-20b') },
   ],
   tools: {
-    searchSchema: searchSchema as any,
-    queryDb: queryDb as any,
-    useSqlCoderLLM: useSqlCoderLLM as any,
+    searchSchema,
+    queryDb,
+    useSqlCoderLLM,
   },
 });
