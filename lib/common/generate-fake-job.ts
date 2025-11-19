@@ -25,7 +25,7 @@ export function generateFakeJobData() {
   const city = faker.helpers.arrayElement(cities);
 
   // Select random zip code for the selected city
-  const zipCode = faker.helpers.arrayElement(cityZipCodes[city]);
+  const zipCode = faker.helpers.arrayElement(cityZipCodes[city]!);
 
   // Generate start date - any date in the future not beyond Mar 1 2026
   const startDate = faker.date.between({
