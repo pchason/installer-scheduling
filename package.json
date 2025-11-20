@@ -37,7 +37,6 @@
     "@fullcalendar/timegrid": "^6.1.10",
     "@huggingface/inference": "^4.13.1",
     "@mastra/core": "latest",
-    "@mastra/fastembed": "^0.10.7",
     "@mastra/loggers": "^0.10.18",
     "@mastra/memory": "^0.15.11",
     "@mastra/pg": "^0.17.7",

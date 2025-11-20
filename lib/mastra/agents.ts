@@ -1,7 +1,5 @@
 import { Agent } from '@mastra/core/agent';
 import { Memory } from "@mastra/memory";
-import { PostgresStore, PgVector } from "@mastra/pg";
-import { fastembed } from "@mastra/fastembed";
 import { groq } from "@ai-sdk/groq";
 import { deepinfra } from "@ai-sdk/deepinfra";
 import { getJobWithPOs, findAvailableInstallers, createJobSchedule, assignInstaller, getInstallerDetails, findJobsWithoutInstallers, scheduleJobsWithoutSchedules, assignInstallersToScheduledJobs, checkInstallerLocationCoverage, searchSchema, queryDb, useSqlCoderLLM } from './tools';
@@ -131,16 +129,9 @@ IMPORTANT:
     queryDb,
     useSqlCoderLLM,
   },
-  memory: new Memory({ 
-    storage: new PostgresStore({
-      connectionString: process.env.DATABASE_URL!,
-    }),
-    vector: new PgVector({
-      connectionString: process.env.DATABASE_URL!,
-    }),
-    embedder: fastembed,
+  memory: new Memory({
     options: {
-      semanticRecall: true,
-    }
+      lastMessages: 20,
+    },
   }),
 });
